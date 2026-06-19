@@ -1,0 +1,19 @@
+{
+  "name": "@suplai/clients",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@suplai/core": "workspace:*",
+    "@suplai/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "typescript": "^5.8.3"
+  }
+}

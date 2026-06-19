@@ -1,0 +1,24 @@
+{
+  "name": "suplai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:migrate": "tsx services/core/src/scripts/migrate.ts",
+    "db:seed": "tsx services/core/src/scripts/seed.ts",
+    "module:create": "tsx scripts/create-module.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.4"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@11.7.0"
+}

@@ -1,0 +1,15 @@
+-- Módulo: {nombre}
+-- Migración: 001_create_tables
+--
+-- Reglas:
+--   - Todas las tablas con prefijo {modulo}__
+--   - FK a {schema}.users y {schema}.clients permitidas
+--   - FK a tablas de otro módulo: PROHIBIDO
+--   - Nunca modificar este archivo una vez aplicado; crear 002_, 003_, etc.
+
+-- create table {schema}.{modulo}__ejemplo (
+--   id         uuid primary key default gen_random_uuid(),
+--   user_id    uuid references {schema}.users(id),
+--   nombre     text not null,
+--   created_at timestamptz not null default now()
+-- );
