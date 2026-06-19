@@ -34,6 +34,8 @@ export async function proxy(request: NextRequest) {
   const subdomain = extractSubdomain(host)
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/auth")
+  // Los API routes de tracking usan Bearer token — no redirigir, el route handler devuelve 401
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/")
 
   if (subdomain) {
     const tenant = await resolveTenant(subdomain)
@@ -42,8 +44,8 @@ export async function proxy(request: NextRequest) {
       return NextResponse.rewrite(new URL("/not-found", request.url))
     }
 
-    // Sin sesión → login (preservando el subdominio en la URL)
-    if (!user && !isAuthRoute) {
+    // Sin sesión → login (salvo auth routes y API routes con Bearer)
+    if (!user && !isAuthRoute && !isApiRoute) {
       return NextResponse.redirect(new URL("/auth/login", request.url))
     }
 
@@ -51,7 +53,7 @@ export async function proxy(request: NextRequest) {
     supabaseResponse.headers.set("x-tenant-id", tenant.id)
     supabaseResponse.headers.set("x-schema-name", tenant.schema_name)
   } else {
-    if (!user && !isAuthRoute) {
+    if (!user && !isAuthRoute && !isApiRoute) {
       return NextResponse.redirect(new URL("/auth/login", request.url))
     }
   }

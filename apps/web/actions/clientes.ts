@@ -13,8 +13,13 @@ import {
   getClientById,
   listClientPoints,
   getClientPointById,
+  listAllClientPoints,
 } from "@suplai/clients"
 import type { Client, ClientPoint } from "@suplai/types"
+
+export async function getTodosLosPuntosDeVenta(schemaName: string) {
+  return listAllClientPoints(schemaName)
+}
 
 export async function getClientes(schemaName: string): Promise<(Client & { puntos_count: number })[]> {
   return listClients(schemaName)

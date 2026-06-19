@@ -1,0 +1,22 @@
+{
+  "name": "@suplai/tracking",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./backend/tracking-service.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@suplai/core": "workspace:*",
+    "@suplai/types": "workspace:*",
+    "@suplai/clients": "workspace:*",
+    "@suplai/module-sdk": "workspace:*",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "typescript": "^5.8.3"
+  }
+}

@@ -4,6 +4,21 @@ Todo módulo nuevo, y toda feature nueva dentro de un módulo existente, debe se
 
 ---
 
+## Cómo iniciar el proceso
+
+Usá los comandos de Claude Code:
+
+```
+/nuevo-modulo {nombre}     ← scoping + planificación técnica (flujo completo)
+/planificar {nombre}       ← solo planificación técnica (si el scoping ya existe)
+```
+
+`/nuevo-modulo` guía el scoping y, al aprobarlo, automáticamente genera el SPEC.md y PLAN.md. No hace falta invocar `/planificar` por separado.
+
+`/planificar` se puede invocar directamente para tareas técnicas complejas que no son módulos nuevos (migraciones, integraciones, refactors), o para re-planificar un módulo después de cambios en el scoping.
+
+---
+
 ## Por qué este proceso existe
 
 Un módulo mal definido genera:
@@ -141,7 +156,7 @@ _Registro de decisiones y su justificación. Completar durante el scoping._
 
 ## Checklist de aprobación del Scoping
 
-Antes de pasar a Fase 1, verificar:
+Antes de pasar a la Fase de Planificación Técnica, verificar:
 
 - [ ] El ID del módulo es único y en snake_case
 - [ ] El problema que resuelve cabe en una oración
@@ -152,6 +167,20 @@ Antes de pasar a Fase 1, verificar:
 - [ ] Las tablas propias tienen prefijo `{modulo}__`
 - [ ] Los datos necesarios de otros módulos se obtienen por evento o API (no JOIN)
 - [ ] Las preguntas abiertas que afectan el diseño están resueltas
+
+---
+
+## Fase 0.5: Planificación Técnica
+
+Con el SCOPING.md aprobado, `/nuevo-modulo` ejecuta automáticamente este paso (o podés correr `/planificar {nombre}` directamente).
+
+Genera dos archivos en `specs/{nombre}/`:
+
+**`SPEC.md`** — Decisiones técnicas: modelo de datos (SQL exacto), stack, flujos, estructura de archivos, consideraciones técnicas, variables de entorno nuevas.
+
+**`PLAN.md`** — Orden de implementación: pasos concretos con archivos exactos, comandos de verificación (tsc, tests), y flujo de prueba final end-to-end.
+
+El SPEC.md y PLAN.md se revisan antes de escribir código. Si hay algo que cambiar, se ajusta en estos documentos primero, no durante la implementación.
 
 ---
 

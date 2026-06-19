@@ -101,6 +101,18 @@ export async function listClientPoints(
   `)
 }
 
+export async function listAllClientPoints(
+  schemaName: string,
+): Promise<(ClientPoint & { client_nombre: string })[]> {
+  return withTenantSchema(schemaName, (db) => db<(ClientPoint & { client_nombre: string })[]>`
+    select cp.*, c.nombre as client_nombre
+    from client_points cp
+    join clients c on c.id = cp.client_id
+    where cp.activo = true and c.activo = true
+    order by c.nombre, cp.nombre
+  `)
+}
+
 export async function getClientPointById(
   schemaName: string,
   pointId: string,
