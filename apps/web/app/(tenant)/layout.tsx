@@ -5,9 +5,15 @@ import { getModuleNav } from "@/actions/nav"
 
 export default async function TenantLayout({ children }: { children: React.ReactNode }) {
   const claims = await getSessionClaims()
-  const moduleNav = claims
-    ? await getModuleNav(claims.tenant_id, claims.schema_name, claims.app_user_id)
-    : []
+  const moduleNav =
+    claims
+      ? await getModuleNav(claims.tenant_id, claims.schema_name, claims.app_user_id).catch(
+          (err) => {
+            console.error("[TenantLayout] getModuleNav failed:", err)
+            return []
+          },
+        )
+      : []
 
   return (
     <div className="min-h-screen flex bg-gray-50">
