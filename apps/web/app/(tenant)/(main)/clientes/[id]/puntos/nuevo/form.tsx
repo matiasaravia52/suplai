@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { crearPuntoDeVenta } from "@/actions/clientes"
+import AddressGeocoder from "@/components/address-geocoder"
 
 export default function NuevoPuntoForm({
   schemaName, clientId,
@@ -34,29 +35,12 @@ export default function NuevoPuntoForm({
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-        <input name="direccion" type="text" placeholder="Calle Principal 456"
-          className="w-full px-3 py-2 border border-gray-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <AddressGeocoder />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
         <input name="telefono" type="text" placeholder="+54 11 5555-5678"
           className="w-full px-3 py-2 border border-gray-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Latitud <span className="text-gray-400 font-normal">(opcional)</span>
-          </label>
-          <input name="lat" type="number" step="any" placeholder="-34.6037"
-            className="w-full px-3 py-2 border border-gray-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Longitud <span className="text-gray-400 font-normal">(opcional)</span>
-          </label>
-          <input name="lng" type="number" step="any" placeholder="-58.3816"
-            className="w-full px-3 py-2 border border-gray-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
       </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>}
