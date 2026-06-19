@@ -69,18 +69,28 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
           {optionalModules.map((m) => (
             <div key={m.module_id} className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-700">{m.nombre}</span>
-              <form action={async () => { "use server"; await toggleModule(id, m.module_id, !m.activo) }}>
-                <button
-                  type="submit"
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-                    m.activo ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                >
-                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                    m.activo ? "translate-x-4" : "translate-x-0.5"
-                  }`} />
-                </button>
-              </form>
+              <div className="flex items-center gap-3">
+                {m.activo && (
+                  <Link
+                    href={`/tenants/${id}/modules/${m.module_id}`}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Configurar
+                  </Link>
+                )}
+                <form action={async () => { "use server"; await toggleModule(id, m.module_id, !m.activo) }}>
+                  <button
+                    type="submit"
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                      m.activo ? "bg-blue-600" : "bg-gray-200"
+                    }`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                      m.activo ? "translate-x-4" : "translate-x-0.5"
+                    }`} />
+                  </button>
+                </form>
+              </div>
             </div>
           ))}
         </div>

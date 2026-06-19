@@ -176,3 +176,36 @@ export async function getTenantModules(tenantId: string) {
     order by m.is_core desc, m.nombre
   `
 }
+
+export async function getModuleFeatureConfig(tenantId: string, moduleId: string) {
+  const rows = await db<{ features: Record<string, boolean> }[]>`
+    select features
+    from public.tenant_modules
+    where tenant_id = ${tenantId}::uuid and module_id = ${moduleId}
+  `
+  const saved = rows[0]?.features ?? {}
+  const manifest = ModuleRegistry.get(moduleId)
+  if (!manifest) return null
+
+  return {
+    manifest,
+    features: manifest.features.map((f) => ({
+      ...f,
+      enabled: f.id in saved ? saved[f.id] : f.defaultEnabled,
+    })),
+  }
+}
+
+export async function updateModuleFeature(
+  tenantId: string,
+  moduleId: string,
+  featureId: string,
+  enabled: boolean,
+) {
+  await db`
+    update public.tenant_modules
+    set features = features || ${JSON.stringify({ [featureId]: enabled })}::jsonb
+    where tenant_id = ${tenantId}::uuid and module_id = ${moduleId}
+  `
+  revalidatePath(`/tenants/${tenantId}/modules/${moduleId}`)
+}
