@@ -204,7 +204,7 @@ export async function updateModuleFeature(
 ) {
   await db`
     update public.tenant_modules
-    set features = features || ${JSON.stringify({ [featureId]: enabled })}::jsonb
+    set features = features || jsonb_build_object(${featureId}, ${enabled})
     where tenant_id = ${tenantId}::uuid and module_id = ${moduleId}
   `
   revalidatePath(`/tenants/${tenantId}/modules/${moduleId}`)
