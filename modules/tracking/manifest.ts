@@ -1,5 +1,6 @@
 import type { ModuleManifest } from "@suplai/module-sdk"
 import { ModuleRegistry } from "@suplai/core"
+import { runMigrations } from "./migrations/run"
 
 export const manifest: ModuleManifest = {
   id: "tracking",
@@ -21,6 +22,15 @@ export const manifest: ModuleManifest = {
     "tracking:unknown_points:view",
     "tracking:route_plans:manage",
   ],
+  permissionRoles: {
+    "tracking:field_tracking:create":  ["repartidor", "pre_vendedor"],
+    "tracking:field_tracking:view":    ["coordinador", "tenant_admin"],
+    "tracking:field_tracking:export":  ["coordinador", "tenant_admin"],
+    "tracking:route_tracing:view":     ["coordinador", "tenant_admin"],
+    "tracking:unknown_points:create":  ["repartidor", "pre_vendedor"],
+    "tracking:unknown_points:view":    ["coordinador", "tenant_admin"],
+    "tracking:route_plans:manage":     ["coordinador", "tenant_admin"],
+  },
   nav: [
     { label: "Tracking en vivo",     ruta: "/tracking",               permission: "tracking:field_tracking:view",   feature: "field_tracking" },
     { label: "Planes de ruta",        ruta: "/tracking/planes",        permission: "tracking:route_plans:manage",   feature: "field_tracking" },
@@ -32,7 +42,8 @@ export const manifest: ModuleManifest = {
   ],
   notifications: [],
   coreDepends: ["users", "clients"],
-  migrations: ["001_create_tables.sql"],
+  migrations: ["001_create_tables.sql", "002_route_plans.sql"],
+  runMigrations,
 }
 
 ModuleRegistry.register(manifest)

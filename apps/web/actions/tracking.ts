@@ -4,7 +4,7 @@ import {
   listFieldEmployees, listVisits, listFraudAlerts, getRoutePoints,
   createRoutePlan, listRoutePlans, getRoutePlanDetail, getActivePlanForEmployee,
   deleteRoutePlan, updateRoutePlan,
-} from "@suplai/tracking"
+} from "@suplai/tracking/service"
 import { revalidatePath } from "next/cache"
 import type { FieldEmployee, VisitFilters, AlertFilters, RoutePoint, RoutePlanEstado } from "@suplai/types"
 

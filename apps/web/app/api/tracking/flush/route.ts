@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { verifyBearerToken } from "@/lib/api-auth"
-import { flushRoutePoints } from "@suplai/tracking"
+import { flushRoutePoints } from "@suplai/tracking/service"
 import type { RoutePoint } from "@suplai/types"
 
 export async function POST(request: Request) {

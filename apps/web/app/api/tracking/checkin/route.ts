@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { verifyBearerToken } from "@/lib/api-auth"
-import { checkin } from "@suplai/tracking"
+import { checkin } from "@suplai/tracking/service"
 
 export async function POST(request: Request) {
   const claims = await verifyBearerToken(request)

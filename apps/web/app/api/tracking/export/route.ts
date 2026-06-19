@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { verifyBearerToken } from "@/lib/api-auth"
-import { exportVisitsExcel } from "@suplai/tracking"
+import { exportVisitsExcel } from "@suplai/tracking/service"
 import type { VisitFilters } from "@suplai/types"
 
 export async function GET(request: Request) {

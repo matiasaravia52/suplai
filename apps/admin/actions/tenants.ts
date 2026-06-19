@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
-import { db, withTenantSchema } from "@suplai/core"
+import { db, withTenantSchema, ModuleRegistry } from "@suplai/core"
 import type { Tenant } from "@suplai/types"
+// Registra todos los módulos en el registry para que toggleModule pueda leer sus manifests
+import "@suplai/tracking"
 
 function toSchemaName(subdominio: string): string {
   return "tenant_" + subdominio.toLowerCase().replace(/[^a-z0-9]/g, "_")
@@ -61,6 +63,9 @@ export async function createTenant(formData: FormData) {
 }
 
 export async function toggleModule(tenantId: string, moduleId: string, activo: boolean) {
+  const tenant = await getTenant(tenantId)
+  if (!tenant) return
+
   await db`
     insert into public.tenant_modules (tenant_id, module_id, activo, version, features)
     select ${tenantId}::uuid, id, ${activo}, version, '{}'::jsonb
@@ -68,6 +73,35 @@ export async function toggleModule(tenantId: string, moduleId: string, activo: b
     on conflict (tenant_id, module_id)
     do update set activo = excluded.activo
   `
+
+  // Al activar: correr migraciones y sembrar role_permissions desde el manifest
+  if (activo) {
+    const manifest = ModuleRegistry.get(moduleId)
+    if (manifest) {
+      // 1. Crear tablas del módulo en el schema del tenant
+      if (manifest.runMigrations) {
+        await manifest.runMigrations(tenant.schema_name)
+      }
+
+      // 2. Sembrar permisos en los roles correspondientes
+      if (manifest.permissionRoles) {
+        await withTenantSchema(tenant.schema_name, async (tx) => {
+          for (const [permiso, roles] of Object.entries(manifest.permissionRoles!)) {
+            for (const rolNombre of roles) {
+              await tx`
+                insert into role_permissions (role_id, permiso)
+                select r.id, ${permiso}
+                from roles r
+                where r.nombre = ${rolNombre}
+                on conflict do nothing
+              `
+            }
+          }
+        })
+      }
+    }
+  }
+
   revalidatePath(`/tenants/${tenantId}`)
 }
 
@@ -75,6 +109,31 @@ export async function toggleTenant(tenantId: string, activo: boolean) {
   await db`update public.tenants set activo = ${activo} where id = ${tenantId}::uuid`
   revalidatePath(`/tenants/${tenantId}`)
   revalidatePath("/tenants")
+}
+
+export async function deleteTenant(tenantId: string) {
+  const tenant = await getTenant(tenantId)
+  if (!tenant) return { error: "Tenant no encontrado" }
+
+  // 1. Obtener todos los auth_user_id del schema del tenant
+  const authUsers = await withTenantSchema(tenant.schema_name, (tx) =>
+    tx<{ supabase_auth_id: string }[]>`select supabase_auth_id from users`
+  )
+
+  // 2. Borrar usuarios de Supabase Auth (requiere service role)
+  const { createServiceClient } = await import("@/lib/supabase/server")
+  const supabase = await createServiceClient()
+  for (const { supabase_auth_id } of authUsers) {
+    await supabase.auth.admin.deleteUser(supabase_auth_id)
+  }
+
+  // 3. Drop del schema CASCADE (elimina todas las tablas del tenant)
+  await db.unsafe(`drop schema if exists "${tenant.schema_name}" cascade`)
+
+  // 4. Borrar el tenant (cascade elimina tenant_modules, tenant_migrations)
+  await db`delete from public.tenants where id = ${tenantId}::uuid`
+
+  redirect("/tenants")
 }
 
 // Datos para las páginas

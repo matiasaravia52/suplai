@@ -31,6 +31,8 @@ export interface ModuleManifest {
 
   features: ModuleFeature[]
   permissions: string[]
+  // Mapeo de permiso → roles que lo reciben por defecto al activar el módulo
+  permissionRoles?: Record<string, string[]>
 
   nav: ModuleNavItem[]
   mobileScreens: ModuleMobileScreen[]
@@ -38,4 +40,6 @@ export interface ModuleManifest {
 
   coreDepends: string[]
   migrations: string[]
+  // Función que crea las tablas del módulo en el schema del tenant
+  runMigrations?: (schemaName: string) => Promise<void>
 }

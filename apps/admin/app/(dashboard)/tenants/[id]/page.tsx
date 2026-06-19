@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getTenant, getTenantModules, toggleModule, toggleTenant } from "@/actions/tenants"
 import { getTenantUsers } from "@/actions/users"
+import { DeleteTenantButton } from "./DeleteTenantButton"
 
 export default async function TenantPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -33,18 +34,21 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
           </p>
         </div>
 
-        <form action={async () => { "use server"; await toggleTenant(id, !tenant.activo) }}>
-          <button
-            type="submit"
-            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-              tenant.activo
-                ? "border-red-200 text-red-600 hover:bg-red-50"
-                : "border-green-200 text-green-600 hover:bg-green-50"
-            }`}
-          >
-            {tenant.activo ? "Desactivar" : "Activar"}
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <form action={async () => { "use server"; await toggleTenant(id, !tenant.activo) }}>
+            <button
+              type="submit"
+              className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                tenant.activo
+                  ? "border-orange-200 text-orange-600 hover:bg-orange-50"
+                  : "border-green-200 text-green-600 hover:bg-green-50"
+              }`}
+            >
+              {tenant.activo ? "Desactivar" : "Activar"}
+            </button>
+          </form>
+          <DeleteTenantButton tenantId={id} tenantNombre={tenant.nombre} />
+        </div>
       </div>
 
       {/* Módulos */}

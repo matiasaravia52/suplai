@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
-    ".": "./backend/tracking-service.ts"
+    ".": "./manifest.ts",
+    "./service": "./backend/tracking-service.ts"
   },
   "scripts": {
     "lint": "tsc --noEmit"

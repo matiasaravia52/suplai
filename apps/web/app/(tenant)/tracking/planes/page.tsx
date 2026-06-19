@@ -1,5 +1,6 @@
 import { getTenantContext } from "@/lib/tenant"
 import { getSessionClaims } from "@/lib/session"
+import { requireFeatureAndPermission } from "@/lib/access"
 import { getPlans } from "@/actions/tracking"
 import { redirect, notFound } from "next/navigation"
 import { headers } from "next/headers"
@@ -16,6 +17,8 @@ export default async function PlanesPage({
   const hdrs = await headers()
   const ctx = getTenantContext(hdrs)
   if (!ctx) notFound()
+
+  await requireFeatureAndPermission(claims, "tracking", "field_tracking", "tracking:route_plans:manage")
 
   const params = await searchParams
   const fecha = params.fecha ?? new Date().toISOString().slice(0, 10)

@@ -1,5 +1,6 @@
 import { getTenantContext } from "@/lib/tenant"
 import { getSessionClaims } from "@/lib/session"
+import { requireFeatureAndPermission } from "@/lib/access"
 import { getVisitHistory } from "@/actions/tracking"
 import { redirect, notFound } from "next/navigation"
 import { headers } from "next/headers"
@@ -16,6 +17,8 @@ export default async function HistorialPage({
   const ctx = getTenantContext(hdrs)
   if (!ctx) notFound()
   const { schemaName } = ctx
+
+  await requireFeatureAndPermission(claims, "tracking", "field_tracking", "tracking:field_tracking:view")
   const params = await searchParams
 
   const visits = await getVisitHistory(schemaName, {

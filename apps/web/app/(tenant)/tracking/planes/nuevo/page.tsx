@@ -1,5 +1,6 @@
 import { getTenantContext } from "@/lib/tenant"
 import { getSessionClaims } from "@/lib/session"
+import { requireFeatureAndPermission } from "@/lib/access"
 import { getFieldEmployees } from "@/actions/tracking"
 import { getTodosLosPuntosDeVenta } from "@/actions/clientes"
 import { NuevoPlanForm } from "./NuevoPlanForm"
@@ -13,6 +14,8 @@ export default async function NuevoPlanPage() {
   const hdrs = await headers()
   const ctx = getTenantContext(hdrs)
   if (!ctx) notFound()
+
+  await requireFeatureAndPermission(claims, "tracking", "field_tracking", "tracking:route_plans:manage")
 
   const [employees, clientPoints] = await Promise.all([
     getFieldEmployees(ctx.schemaName),

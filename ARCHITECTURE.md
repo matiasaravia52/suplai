@@ -42,7 +42,13 @@ Las features activas por tenant se guardan como `{ "live_map": true, "geofencing
 
 ### Comunicación cross-módulo por EventBus
 
-Los módulos se comunican emitiendo y escuchando eventos. Hoy el EventBus es in-process. La interfaz es la misma que tendría un message broker (emit/on), por lo que el reemplazo futuro no afecta a los módulos.
+Los módulos se comunican emitiendo y escuchando eventos. Hoy el EventBus es in-process (`services/core/src/event-bus.ts`). La interfaz es la misma que tendría un message broker (`emit` / `on` / `off`), por lo que el reemplazo futuro no afecta a los módulos.
+
+**Limitación importante con Next.js App Router:** el EventBus es un singleton en memoria del proceso Node.js. En producción (Vercel serverless), cada invocación arranca desde cero — los `on()` no sobreviven entre requests. Esto significa que **los eventos emitidos hoy no tienen efecto observable** a menos que el listener esté registrado en el mismo proceso que emite.
+
+**Cuándo implementarlo:** no emitir eventos de un módulo hasta que exista al menos un consumidor real del otro lado. El contrato de eventos se define en el `SCOPING.md` del módulo emisor; la implementación del `emit()` es un cambio de 3 líneas que se hace cuando el módulo consumidor existe.
+
+**Cuándo reemplazar el bus in-process:** cuando haya dos módulos en producción que necesiten comunicarse de forma asíncrona y confiable (ej: `tracking` → `orders`). El reemplazo natural es Inngest (ya en el stack target) o SQS. El cambio está aislado en `services/core/src/event-bus.ts` — los módulos no cambian.
 
 ---
 
