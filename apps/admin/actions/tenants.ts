@@ -74,32 +74,38 @@ export async function toggleModule(tenantId: string, moduleId: string, activo: b
     do update set activo = excluded.activo
   `
 
-  // Al activar: correr migraciones y sembrar role_permissions desde el manifest
-  if (activo) {
-    const manifest = ModuleRegistry.get(moduleId)
-    if (manifest) {
-      // 1. Crear tablas del módulo en el schema del tenant
-      if (manifest.runMigrations) {
-        await manifest.runMigrations(tenant.schema_name)
-      }
+  const manifest = ModuleRegistry.get(moduleId)
 
-      // 2. Sembrar permisos en los roles correspondientes
-      if (manifest.permissionRoles) {
-        await withTenantSchema(tenant.schema_name, async (tx) => {
-          for (const [permiso, roles] of Object.entries(manifest.permissionRoles!)) {
-            for (const rolNombre of roles) {
-              await tx`
-                insert into role_permissions (role_id, permiso)
-                select r.id, ${permiso}
-                from roles r
-                where r.nombre = ${rolNombre}
-                on conflict do nothing
-              `
-            }
-          }
-        })
-      }
+  if (activo && manifest) {
+    // Al activar: correr migraciones + sembrar role_permissions
+    if (manifest.runMigrations) {
+      await manifest.runMigrations(tenant.schema_name)
     }
+    if (manifest.permissionRoles) {
+      await withTenantSchema(tenant.schema_name, async (tx) => {
+        for (const [permiso, roles] of Object.entries(manifest.permissionRoles!)) {
+          for (const rolNombre of roles) {
+            await tx`
+              insert into role_permissions (role_id, permiso)
+              select r.id, ${permiso}
+              from roles r
+              where r.nombre = ${rolNombre}
+              on conflict do nothing
+            `
+          }
+        }
+      })
+    }
+  }
+
+  if (!activo && manifest?.permissionRoles) {
+    // Al desactivar: eliminar los permisos del módulo de todos los roles
+    const permisos = Object.keys(manifest.permissionRoles)
+    await withTenantSchema(tenant.schema_name, async (tx) => {
+      for (const permiso of permisos) {
+        await tx`delete from role_permissions where permiso = ${permiso}`
+      }
+    })
   }
 
   revalidatePath(`/tenants/${tenantId}`)
