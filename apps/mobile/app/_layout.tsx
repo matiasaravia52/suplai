@@ -1,14 +1,14 @@
 import { useEffect } from "react"
-import { Stack, useRouter, useSegments } from "expo-router"
+import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router"
 import { StatusBar } from "expo-status-bar"
-import { View } from "react-native"
 import { useStore } from "../lib/store"
 import { setApiAuth } from "../lib/api"
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
+function AuthGuard() {
   const { session, apiBaseUrl } = useStore()
   const segments = useSegments()
   const router = useRouter()
+  const navigationRef = useNavigationContainerRef()
 
   useEffect(() => {
     if (session && apiBaseUrl) {
@@ -17,21 +17,24 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [session, apiBaseUrl])
 
   useEffect(() => {
+    if (!navigationRef.isReady()) return
+
     const inAuthGroup = segments[0] === "login"
+    if (session === undefined) return // cargando
 
     if (!session && !inAuthGroup) {
       router.replace("/login")
     } else if (session && inAuthGroup) {
       router.replace("/(tabs)")
     }
-  }, [session, segments, router])
+  }, [session, segments, router, navigationRef.isReady()])
 
-  return <>{children}</>
+  return null
 }
 
 export default function RootLayout() {
   return (
-    <AuthGuard>
+    <>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -55,6 +58,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-    </AuthGuard>
+      <AuthGuard />
+    </>
   )
 }
