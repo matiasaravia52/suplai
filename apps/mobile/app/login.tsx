@@ -36,12 +36,8 @@ export default function LoginScreen() {
     setLoading(true)
 
     try {
-      // En dev, los API routes resuelven el tenant del JWT (no del host),
-      // así que no necesitamos subdominio — usamos la IP local de la Mac.
-      const devHost = process.env.EXPO_PUBLIC_DEV_HOST ?? "localhost"
-      const apiBaseUrl = __DEV__
-        ? `http://${devHost}:3000`
-        : `https://${trimmedSubdomain}.suplai.lat`
+      const apiDomain = process.env.EXPO_PUBLIC_API_DOMAIN ?? "suplai.lat"
+      const apiBaseUrl = `https://${trimmedSubdomain}.${apiDomain}`
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
