@@ -10,13 +10,24 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const clientIdParam = url.searchParams.get("clientId")
+  const qParam = url.searchParams.get("q")
 
   try {
-    const points = await withTenantSchema(claims.schema_name, (db) =>
-      clientIdParam
+    const points = await withTenantSchema(claims.schema_name, (db) => {
+      if (qParam) {
+        const search = `%${qParam}%`
+        return db<ClientPoint[]>`
+          select * from client_points
+          where activo = true
+            and (nombre ilike ${search} or direccion ilike ${search})
+          order by nombre
+          limit 20
+        `
+      }
+      return clientIdParam
         ? db<ClientPoint[]>`select * from client_points where client_id = ${clientIdParam} and activo = true order by nombre`
         : db<ClientPoint[]>`select * from client_points where activo = true order by nombre`
-    )
+    })
     return NextResponse.json({ points })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error interno"

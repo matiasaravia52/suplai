@@ -9,7 +9,8 @@
     "test": "turbo test",
     "db:migrate": "tsx services/core/src/scripts/migrate.ts",
     "db:seed": "tsx services/core/src/scripts/seed.ts",
-    "module:create": "tsx scripts/create-module.ts"
+    "module:create": "tsx scripts/create-module.ts",
+    "mobile": "pnpm --filter=@suplai/mobile start"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

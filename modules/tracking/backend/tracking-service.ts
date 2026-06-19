@@ -11,6 +11,9 @@ import type {
   RoutePlan,
   RoutePlanDetail,
   RoutePlanEstado,
+  UnknownPoint,
+  CreateUnknownPointInput,
+  VisitWithPoint,
 } from "@suplai/types"
 import { updateClientPointCoords } from "@suplai/clients"
 import * as XLSX from "xlsx"
@@ -436,6 +439,51 @@ export async function updateRoutePlan(
         select ${planId}, unnest(${input.clientPointIds}::uuid[]), generate_series(1, ${input.clientPointIds.length})
       `
     }
+  })
+}
+
+export async function getMyPlan(
+  schemaName: string,
+  userId: string,
+  fecha?: string,
+): Promise<RoutePlanDetail | null> {
+  return getActivePlanForEmployee(schemaName, userId, fecha)
+}
+
+export async function getMyVisits(
+  schemaName: string,
+  userId: string,
+  limitDays = 7,
+): Promise<VisitWithPoint[]> {
+  return withTenantSchema(schemaName, async (db) => {
+    return db`
+      select
+        v.*,
+        cp.nombre as client_point_nombre
+      from tracking__visits v
+      join client_points cp on cp.id = v.client_point_id
+      where v.user_id = ${userId}
+        and v.checkin_at >= current_date - ${limitDays}::int
+        and v.checkout_at is not null
+      order by v.checkin_at desc
+      limit 50
+    ` as any
+  })
+}
+
+export async function createUnknownPoint(
+  schemaName: string,
+  userId: string,
+  input: CreateUnknownPointInput,
+): Promise<UnknownPoint> {
+  return withTenantSchema(schemaName, async (db) => {
+    const rows = await db`
+      insert into tracking__unknown_points (user_id, nombre, descripcion, lat, lng)
+      values (${userId}, ${input.nombre}, ${input.descripcion ?? null}, ${input.lat}, ${input.lng})
+      returning *
+    `
+    if (rows.length === 0) throw new Error("Error al crear el punto")
+    return rows[0] as UnknownPoint
   })
 }
 

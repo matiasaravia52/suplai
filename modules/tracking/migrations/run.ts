@@ -130,5 +130,12 @@ export async function runMigrations(schemaName: string): Promise<void> {
       create index if not exists tracking__route_plan_stops_plan_orden_idx
         on tracking__route_plan_stops (plan_id, orden)
     `)
+
+    // 003: nombre y descripción en unknown_points
+    await db.unsafe(`
+      alter table tracking__unknown_points
+        add column if not exists nombre      text not null default '',
+        add column if not exists descripcion  text
+    `)
   })
 }

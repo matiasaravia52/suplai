@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Suplai Field",
+    "slug": "suplai-field",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "suplai-field",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "app.suplai.field",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Suplai necesita tu ubicación para registrar las visitas a los puntos de venta.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Suplai necesita tu ubicación en segundo plano para registrar tu recorrido.",
+        "UIBackgroundModes": ["location"]
+      }
+    },
+    "android": {
+      "package": "app.suplai.field",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Suplai necesita tu ubicación en segundo plano para registrar tu recorrido.",
+          "locationWhenInUsePermission": "Suplai necesita tu ubicación para registrar las visitas a los puntos de venta."
+        }
+      ],
+      "expo-router"
+    ]
+  }
+}

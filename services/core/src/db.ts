@@ -5,9 +5,11 @@ const connectionString =
   "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 
 // Pool singleton — compartido por todos los services en el proceso
+// prepare:false requerido para Supabase Supavisor (connection pooler en transaction mode)
 const sql = postgres(connectionString, {
   max: 10,
   idle_timeout: 30,
+  prepare: !connectionString.includes("pooler.supabase.com"),
 })
 
 // Ejecuta un bloque de queries en el schema del tenant.

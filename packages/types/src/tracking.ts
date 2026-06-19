@@ -99,3 +99,24 @@ export interface RoutePlanDetail extends RoutePlan {
   user_nombre: string
   stops: RoutePlanStopDetail[]
 }
+
+export interface UnknownPoint {
+  id: string
+  user_id: string
+  nombre: string
+  descripcion?: string
+  lat: number
+  lng: number
+  created_at: string
+}
+
+export interface CreateUnknownPointInput {
+  nombre: string
+  descripcion?: string
+  lat: number
+  lng: number
+}
+
+export interface VisitWithPoint extends Visit {
+  client_point_nombre: string
+}
