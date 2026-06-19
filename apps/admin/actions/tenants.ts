@@ -65,6 +65,7 @@ export async function createTenant(formData: FormData) {
     `
   })
 
+  revalidatePath("/tenants")
   redirect(`/tenants/${tenantId}`)
 }
 
