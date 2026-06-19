@@ -17,9 +17,8 @@ export default async function TenantLayout({ children }: { children: React.React
         </div>
 
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-          {/* Core — siempre visible, no dependen de módulos */}
+          {/* Inicio — siempre visible */}
           <NavLink href="/">Inicio</NavLink>
-          <NavLink href="/clientes">Clientes</NavLink>
 
           {/* Nav dinámica por módulo */}
           {moduleNav.map((group) => (

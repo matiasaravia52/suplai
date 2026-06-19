@@ -49,13 +49,19 @@ export async function createTenant(formData: FormData) {
       returning id, nombre
     `
     const adminRole = roles.find((r) => r.nombre === "tenant_admin")!
+    const coordRole = roles.find((r) => r.nombre === "coordinador")!
     await tx`
       insert into role_permissions (role_id, permiso)
       select ${adminRole.id}::uuid, unnest(array[
         'users:internal_users:manage',
         'users:external_users:manage',
-        'users:roles:manage'
+        'users:roles:manage',
+        'clients:clients:view'
       ])
+    `
+    await tx`
+      insert into role_permissions (role_id, permiso)
+      values (${coordRole.id}::uuid, 'clients:clients:view')
     `
   })
 

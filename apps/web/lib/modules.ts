@@ -5,6 +5,26 @@ import { ModuleRegistry } from "@suplai/core"
 
 // Módulos core — no tienen package propio, se registran inline
 ModuleRegistry.register({
+  id: "clients",
+  version: "1.0.0",
+  nombre: "Clientes",
+  icono: "building",
+  isCoreModule: true,
+  features: [],
+  permissions: ["clients:clients:view"],
+  permissionRoles: {
+    "clients:clients:view": ["tenant_admin", "coordinador"],
+  },
+  nav: [
+    { label: "Clientes", ruta: "/clientes", permission: "clients:clients:view" },
+  ],
+  mobileScreens: [],
+  notifications: [],
+  coreDepends: [],
+  migrations: [],
+})
+
+ModuleRegistry.register({
   id: "users",
   version: "1.0.0",
   nombre: "Usuarios y Roles",
