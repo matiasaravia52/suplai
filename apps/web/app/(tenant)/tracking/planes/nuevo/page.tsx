@@ -15,7 +15,7 @@ export default async function NuevoPlanPage() {
   const ctx = getTenantContext(hdrs)
   if (!ctx) notFound()
 
-  await requireFeatureAndPermission(claims, "tracking", "field_tracking", "tracking:route_plans:manage")
+  await requireFeatureAndPermission(claims, "tracking", "route_plans", "tracking:route_plans:manage")
 
   const [employees, clientPoints] = await Promise.all([
     getFieldEmployees(ctx.schemaName),

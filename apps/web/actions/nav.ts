@@ -15,9 +15,9 @@ export async function getModuleNav(
   schemaName: string,
   appUserId: string,
 ): Promise<NavGroup[]> {
-  // Módulos activos del tenant
-  const activeModules = await db<{ module_id: string }[]>`
-    select module_id
+  // Módulos activos del tenant + sus features habilitadas
+  const activeModules = await db<{ module_id: string; features: Record<string, boolean> }[]>`
+    select module_id, features
     from public.tenant_modules
     where tenant_id = ${tenantId}::uuid
       and activo = true
@@ -36,12 +36,20 @@ export async function getModuleNav(
 
   const groups: NavGroup[] = []
 
-  for (const { module_id } of activeModules) {
+  for (const { module_id, features } of activeModules) {
     const manifest = ModuleRegistry.get(module_id)
     if (!manifest || manifest.nav.length === 0) continue
 
+    const isFeatureEnabled = (featureId: string) => {
+      if (featureId in features) return features[featureId]
+      const f = manifest.features.find((f) => f.id === featureId)
+      return f?.defaultEnabled ?? true
+    }
+
     const items = manifest.nav.filter(
-      (item) => !item.permission || permSet.has(item.permission),
+      (item) =>
+        (!item.feature || isFeatureEnabled(item.feature)) &&
+        (!item.permission || permSet.has(item.permission)),
     )
     if (items.length > 0) {
       groups.push({ moduleId: module_id, nombre: manifest.nombre, items })

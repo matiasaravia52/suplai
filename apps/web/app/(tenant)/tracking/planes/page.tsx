@@ -18,7 +18,7 @@ export default async function PlanesPage({
   const ctx = getTenantContext(hdrs)
   if (!ctx) notFound()
 
-  await requireFeatureAndPermission(claims, "tracking", "field_tracking", "tracking:route_plans:manage")
+  await requireFeatureAndPermission(claims, "tracking", "route_plans", "tracking:route_plans:manage")
 
   const params = await searchParams
   const fecha = params.fecha ?? new Date().toISOString().slice(0, 10)
