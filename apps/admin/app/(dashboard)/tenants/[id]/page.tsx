@@ -29,7 +29,7 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
           </div>
           <h1 className="text-xl font-semibold text-gray-900">{tenant.nombre}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {tenant.subdominio}.suplai.app
+            {tenant.subdominio}.suplai.lat
             <span className="font-mono text-xs ml-2 text-gray-400">({tenant.schema_name})</span>
           </p>
         </div>

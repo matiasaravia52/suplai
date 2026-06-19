@@ -41,7 +41,7 @@ export default function LoginScreen() {
       const devHost = process.env.EXPO_PUBLIC_DEV_HOST ?? "localhost"
       const apiBaseUrl = __DEV__
         ? `http://${devHost}:3000`
-        : `https://${trimmedSubdomain}.suplai.app`
+        : `https://${trimmedSubdomain}.suplai.lat`
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
