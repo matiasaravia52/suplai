@@ -50,7 +50,6 @@ export const manifest: ModuleManifest = {
     "004_add_accuracy_to_route_points.sql",
     "005_add_resultado_to_visits.sql",
     "006_rename_plans_to_zonas.sql",
-    "007_drop_route_plans.sql",
   ],
   runMigrations,
 }

@@ -145,8 +145,5 @@ export async function runMigrations(schemaName: string): Promise<void> {
         on tracking__zona_stops (zona_id, orden)
     `)
 
-    // 007: eliminar tablas de hojas de ruta (reemplazadas por zonas)
-    await db.unsafe(`drop table if exists tracking__route_plan_stops cascade`)
-    await db.unsafe(`drop table if exists tracking__route_plans cascade`)
   })
 }
