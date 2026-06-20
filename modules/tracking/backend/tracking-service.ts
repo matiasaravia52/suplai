@@ -8,9 +8,8 @@ import type {
   CheckinInput,
   VisitFilters,
   AlertFilters,
-  RoutePlan,
-  RoutePlanDetail,
-  RoutePlanEstado,
+  Zona,
+  ZonaDetail,
   UnknownPoint,
   CreateUnknownPointInput,
   VisitWithPoint,
@@ -327,87 +326,175 @@ export async function listFraudAlerts(
   })
 }
 
-export async function createRoutePlan(
+// ─── Zonas ───────────────────────────────────────────────────────────────────
+
+export async function createZona(
   schemaName: string,
-  input: { userId: string; fecha: string; createdBy: string; clientPointIds: string[] },
-): Promise<RoutePlan> {
+  input: { userId: string; nombre?: string; createdBy: string; clientPointIds: string[] },
+): Promise<Zona> {
   return withTenantSchema(schemaName, async (db) => {
-    const [plan] = await db<RoutePlan[]>`
-      insert into tracking__route_plans (user_id, fecha, estado, created_by)
-      values (${input.userId}, ${input.fecha}, 'activa', ${input.createdBy})
+    const [zona] = await db<Zona[]>`
+      insert into tracking__zonas (user_id, nombre, created_by)
+      values (${input.userId}, ${input.nombre ?? ''}, ${input.createdBy})
+      on conflict (user_id) do update set nombre = excluded.nombre
       returning *
     `
+    await db`delete from tracking__zona_stops where zona_id = ${zona!.id}`
     if (input.clientPointIds.length > 0) {
       await db`
-        insert into tracking__route_plan_stops (plan_id, client_point_id, orden)
-        select ${plan!.id}, unnest(${input.clientPointIds}::uuid[]), generate_series(1, ${input.clientPointIds.length})
+        insert into tracking__zona_stops (zona_id, client_point_id, orden)
+        select ${zona!.id}, unnest(${input.clientPointIds}::uuid[]), generate_series(1, ${input.clientPointIds.length})
       `
     }
-    return plan!
+    return zona!
   })
 }
 
-export async function listRoutePlans(
+export async function listZonas(
   schemaName: string,
-  filters: { fecha?: string; userId?: string; estado?: RoutePlanEstado } = {},
-): Promise<(RoutePlan & { user_nombre: string; total_stops: number; stops_visitados: number })[]> {
+  filters: { userId?: string } = {},
+): Promise<(Zona & { user_nombre: string; total_stops: number })[]> {
   return withTenantSchema(schemaName, (db) => db`
     select
-      p.id, p.user_id, p.created_by, p.estado, p.created_at,
-      to_char(p.fecha, 'YYYY-MM-DD') as fecha,
+      z.id, z.user_id, z.nombre, z.created_by, z.created_at,
       u.nombre as user_nombre,
-      count(s.id)::int as total_stops,
-      count(s.visit_id)::int as stops_visitados
-    from tracking__route_plans p
-    join users u on u.id = p.user_id
-    left join tracking__route_plan_stops s on s.plan_id = p.id
+      count(s.id)::int as total_stops
+    from tracking__zonas z
+    join users u on u.id = z.user_id
+    left join tracking__zona_stops s on s.zona_id = z.id
     where true
-      ${filters.fecha  ? db`and p.fecha = ${filters.fecha}`    : db``}
-      ${filters.userId ? db`and p.user_id = ${filters.userId}` : db``}
-      ${filters.estado ? db`and p.estado = ${filters.estado}`  : db``}
-    group by p.id, u.nombre
-    order by p.fecha desc, u.nombre
-    limit 200
+      ${filters.userId ? db`and z.user_id = ${filters.userId}` : db``}
+    group by z.id, u.nombre
+    order by u.nombre
   ` as any)
 }
 
-export async function getRoutePlanDetail(
+export async function getZonaDetail(
   schemaName: string,
-  planId: string,
-): Promise<RoutePlanDetail | null> {
+  zonaId: string,
+): Promise<ZonaDetail | null> {
   return withTenantSchema(schemaName, async (db) => {
-    const [plan] = await db<(RoutePlan & { user_nombre: string })[]>`
-      select p.id, p.user_id, p.created_by, p.estado, p.created_at,
-             to_char(p.fecha, 'YYYY-MM-DD') as fecha,
+    const [zona] = await db<(Zona & { user_nombre: string })[]>`
+      select z.id, z.user_id, z.nombre, z.created_by, z.created_at,
              u.nombre as user_nombre
-      from tracking__route_plans p
-      join users u on u.id = p.user_id
-      where p.id = ${planId}
+      from tracking__zonas z
+      join users u on u.id = z.user_id
+      where z.id = ${zonaId}
     `
-    if (!plan) return null
-
+    if (!zona) return null
     const stops = await db`
-      select
-        s.*,
-        cp.nombre as client_point_nombre,
-        cp.lat    as client_point_lat,
-        cp.lng    as client_point_lng,
-        c.nombre  as client_nombre,
-        (s.visit_id is not null) as visitado
-      from tracking__route_plan_stops s
+      select s.id, s.zona_id, s.client_point_id, s.orden, s.created_at,
+             cp.nombre as client_point_nombre,
+             cp.lat    as client_point_lat,
+             cp.lng    as client_point_lng,
+             c.nombre  as client_nombre,
+             false     as visitado
+      from tracking__zona_stops s
       join client_points cp on cp.id = s.client_point_id
       join clients c on c.id = cp.client_id
-      where s.plan_id = ${planId}
+      where s.zona_id = ${zonaId}
       order by s.orden
     `
-
-    return { ...plan, stops: stops as any }
+    return { ...zona, stops: stops as any }
   })
 }
 
-export async function getEmployeesWithActivityOnDate(
+export async function getZonaDetailForDate(
   schemaName: string,
+  zonaId: string,
   fecha: string,
+): Promise<ZonaDetail | null> {
+  return withTenantSchema(schemaName, async (db) => {
+    const [zona] = await db<(Zona & { user_nombre: string })[]>`
+      select z.id, z.user_id, z.nombre, z.created_by, z.created_at,
+             u.nombre as user_nombre
+      from tracking__zonas z
+      join users u on u.id = z.user_id
+      where z.id = ${zonaId}
+    `
+    if (!zona) return null
+    const stops = await db`
+      select s.id, s.zona_id, s.client_point_id, s.orden, s.created_at,
+             cp.nombre as client_point_nombre,
+             cp.lat    as client_point_lat,
+             cp.lng    as client_point_lng,
+             c.nombre  as client_nombre,
+             (v.id is not null)  as visitado,
+             v.id                as visit_id,
+             v.checkin_at,
+             v.checkout_at
+      from tracking__zona_stops s
+      join client_points cp on cp.id = s.client_point_id
+      join clients c on c.id = cp.client_id
+      left join tracking__visits v
+        on  v.client_point_id = s.client_point_id
+        and v.user_id         = ${zona.user_id}
+        and v.checkin_at >= ${fecha}::date
+        and v.checkin_at <  ${fecha}::date + interval '1 day'
+      where s.zona_id = ${zonaId}
+      order by s.orden
+    `
+    return { ...zona, stops: stops as any }
+  })
+}
+
+export async function getZonaForEmployee(
+  schemaName: string,
+  userId: string,
+): Promise<ZonaDetail | null> {
+  return withTenantSchema(schemaName, async (db) => {
+    const [row] = await db<{ id: string }[]>`
+      select id from tracking__zonas where user_id = ${userId} limit 1
+    `
+    if (!row) return null
+    return getZonaDetail(schemaName, row.id)
+  })
+}
+
+export async function getMyZona(
+  schemaName: string,
+  userId: string,
+  fecha?: string,
+): Promise<ZonaDetail | null> {
+  const targetDate = fecha ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
+  return withTenantSchema(schemaName, async (db) => {
+    const [row] = await db<{ id: string }[]>`
+      select id from tracking__zonas where user_id = ${userId} limit 1
+    `
+    if (!row) return null
+    return getZonaDetailForDate(schemaName, row.id, targetDate)
+  })
+}
+
+export async function deleteZona(schemaName: string, zonaId: string): Promise<void> {
+  await withTenantSchema(schemaName, (db) => db`
+    delete from tracking__zonas where id = ${zonaId}
+  `)
+}
+
+export async function updateZona(
+  schemaName: string,
+  zonaId: string,
+  input: { userId: string; nombre?: string; clientPointIds: string[] },
+): Promise<void> {
+  await withTenantSchema(schemaName, async (db) => {
+    await db`
+      update tracking__zonas
+      set user_id = ${input.userId}, nombre = ${input.nombre ?? ''}
+      where id = ${zonaId}
+    `
+    await db`delete from tracking__zona_stops where zona_id = ${zonaId}`
+    if (input.clientPointIds.length > 0) {
+      await db`
+        insert into tracking__zona_stops (zona_id, client_point_id, orden)
+        select ${zonaId}, unnest(${input.clientPointIds}::uuid[]), generate_series(1, ${input.clientPointIds.length})
+      `
+    }
+  })
+}
+
+export async function getEmployeesWithZona(
+  schemaName: string,
 ): Promise<FieldEmployee[]> {
   return withTenantSchema(schemaName, async (db) => {
     const rows = await db`
@@ -420,21 +507,20 @@ export async function getEmployeesWithActivityOnDate(
         es.current_lng,
         es.last_seen_at,
         es.visit_id
-      from tracking__route_plans p
-      join users u on u.id = p.user_id
+      from tracking__zonas z
+      join users u on u.id = z.user_id
       join user_roles ur on ur.user_id = u.id
       join roles r on r.id = ur.role_id
       left join tracking__employee_status es on es.user_id = u.id
-      where p.fecha = ${fecha}
       group by u.id, u.nombre, u.email, es.current_lat, es.current_lng, es.last_seen_at, es.visit_id
       order by u.nombre
     `
     return rows.map((row): FieldEmployee => {
       const status: EmployeeStatus | undefined = row.current_lat != null
         ? {
-            user_id: row.id as string,
-            current_lat: row.current_lat as number,
-            current_lng: row.current_lng as number,
+            user_id:      row.id as string,
+            current_lat:  row.current_lat as number,
+            current_lng:  row.current_lng as number,
             ...(row.last_seen_at != null ? { last_seen_at: row.last_seen_at as string } : {}),
             ...(row.visit_id != null     ? { visit_id:     row.visit_id     as string } : {}),
           }
@@ -454,115 +540,16 @@ export async function getRoutePointsForDate(
   schemaName: string,
   userId: string,
   fecha: string,
-  planId?: string,
 ): Promise<RoutePoint[]> {
-  return withTenantSchema(schemaName, async (db) => {
-    if (planId) {
-      // Filtrar por el rango de tiempo de las visitas del plan.
-      // Incluye puntos de tránsito entre visitas (visit_id null) que caigan dentro del rango.
-      return db<RoutePoint[]>`
-        with plan_range as (
-          select
-            min(v.checkin_at)                    as start_time,
-            max(coalesce(v.checkout_at, now()))   as end_time
-          from tracking__route_plan_stops s
-          join tracking__visits v on v.id = s.visit_id
-          where s.plan_id = ${planId}
-        )
-        select rp.id, rp.user_id, rp.visit_id, rp.lat, rp.lng,
-               rp.speed_kmh, rp.heading, rp.accuracy_metros, rp.recorded_at, rp.created_at
-        from tracking__route_points rp
-        cross join plan_range
-        where rp.user_id = ${userId}
-          and plan_range.start_time is not null
-          and rp.recorded_at >= plan_range.start_time
-          and rp.recorded_at <= plan_range.end_time
-        order by rp.recorded_at asc
-        limit 2000
-      `
-    }
-
-    return db<RoutePoint[]>`
-      select id, user_id, visit_id, lat, lng, speed_kmh, heading, accuracy_metros, recorded_at, created_at
-      from tracking__route_points
-      where user_id = ${userId}
-        and recorded_at >= ${fecha}::date
-        and recorded_at <  ${fecha}::date + interval '1 day'
-      order by recorded_at asc
-      limit 2000
-    `
-  })
-}
-
-export async function getActivePlanForEmployee(
-  schemaName: string,
-  userId: string,
-  fecha?: string,
-): Promise<RoutePlanDetail | null> {
-  // Si no se pasa fecha, usar current_date del servidor de DB (que es UTC) o la fecha local del cliente.
-  // Preferimos que el cliente envíe su fecha local para evitar desajustes de timezone.
-  const targetDate = fecha ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
-  return withTenantSchema(schemaName, async (db) => {
-    const [plan] = await db<{ id: string }[]>`
-      select id from tracking__route_plans
-      where user_id = ${userId} and fecha = ${targetDate} and estado = 'activa'
-      order by created_at desc limit 1
-    `
-    if (!plan) return null
-    return getRoutePlanDetail(schemaName, plan.id)
-  })
-}
-
-export async function deleteRoutePlan(schemaName: string, planId: string): Promise<void> {
-  await withTenantSchema(schemaName, (db) => db`
-    delete from tracking__route_plans where id = ${planId}
+  return withTenantSchema(schemaName, (db) => db<RoutePoint[]>`
+    select id, user_id, visit_id, lat, lng, speed_kmh, heading, accuracy_metros, recorded_at, created_at
+    from tracking__route_points
+    where user_id = ${userId}
+      and recorded_at >= ${fecha}::date
+      and recorded_at <  ${fecha}::date + interval '1 day'
+    order by recorded_at asc
+    limit 2000
   `)
-}
-
-export async function updateRoutePlan(
-  schemaName: string,
-  planId: string,
-  input: { userId: string; fecha: string; clientPointIds: string[] },
-): Promise<void> {
-  await withTenantSchema(schemaName, async (db) => {
-    await db`
-      update tracking__route_plans
-      set user_id = ${input.userId}, fecha = ${input.fecha}
-      where id = ${planId}
-    `
-    await db`delete from tracking__route_plan_stops where plan_id = ${planId}`
-    if (input.clientPointIds.length > 0) {
-      await db`
-        insert into tracking__route_plan_stops (plan_id, client_point_id, orden)
-        select ${planId}, unnest(${input.clientPointIds}::uuid[]), generate_series(1, ${input.clientPointIds.length})
-      `
-    }
-  })
-}
-
-export async function getMyPlan(
-  schemaName: string,
-  userId: string,
-  fecha?: string,
-): Promise<RoutePlanDetail | null> {
-  return getActivePlanForEmployee(schemaName, userId, fecha)
-}
-
-export async function getMyPlansForDate(
-  schemaName: string,
-  userId: string,
-  fecha?: string,
-): Promise<RoutePlanDetail[]> {
-  const targetDate = fecha ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
-  return withTenantSchema(schemaName, async (db) => {
-    const plans = await db<{ id: string }[]>`
-      select id from tracking__route_plans
-      where user_id = ${userId} and fecha = ${targetDate}
-      order by created_at desc
-    `
-    const details = await Promise.all(plans.map((p) => getRoutePlanDetail(schemaName, p.id)))
-    return details.filter((d): d is RoutePlanDetail => d !== null)
-  })
 }
 
 export async function getMyVisits(

@@ -71,37 +71,36 @@ export interface AlertFilters {
   fechaHasta?: string
 }
 
-export type RoutePlanEstado = "borrador" | "activa" | "completada"
-
-export interface RoutePlan {
+export interface Zona {
   id: string
   user_id: string
-  fecha: string
-  estado: RoutePlanEstado
+  nombre: string
   created_by: string
   created_at: string
 }
 
-export interface RoutePlanStop {
+export interface ZonaStop {
   id: string
-  plan_id: string
+  zona_id: string
   client_point_id: string
   orden: number
-  visit_id?: string
   created_at: string
 }
 
-export interface RoutePlanStopDetail extends RoutePlanStop {
+export interface ZonaStopDetail extends ZonaStop {
   client_point_nombre: string
   client_point_lat?: number
   client_point_lng?: number
   client_nombre: string
   visitado: boolean
+  visit_id?: string
+  checkin_at?: string
+  checkout_at?: string
 }
 
-export interface RoutePlanDetail extends RoutePlan {
+export interface ZonaDetail extends Zona {
   user_nombre: string
-  stops: RoutePlanStopDetail[]
+  stops: ZonaStopDetail[]
 }
 
 export interface UnknownPoint {

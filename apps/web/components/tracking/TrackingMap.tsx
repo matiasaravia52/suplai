@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { createClient } from "@/lib/supabase/client"
-import type { FieldEmployee, EmployeeStatus, RoutePoint, RoutePlanDetail } from "@suplai/types"
+import type { FieldEmployee, EmployeeStatus, RoutePoint, ZonaDetail } from "@suplai/types"
 
 const ROUTE_SOURCE = "employee-route"
 const ROUTE_LAYER  = "employee-route-line"
@@ -16,12 +16,13 @@ interface Props {
   schemaName: string
   accessToken: string
   routePoints?: RoutePoint[]
-  activePlan?: RoutePlanDetail | null
+  activeZona?: ZonaDetail | null
   selectedUserId?: string
   onEmployeeSelect?: (userId: string) => void
 }
 
-export function TrackingMap({ employees, schemaName, accessToken, routePoints = [], activePlan, selectedUserId, onEmployeeSelect }: Props) {
+export function TrackingMap({ employees, schemaName, accessToken, routePoints = [], activeZona, selectedUserId, onEmployeeSelect }: Props) {
+  const activePlan = activeZona
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map())

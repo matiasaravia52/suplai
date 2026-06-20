@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { createPlan } from "@/actions/tracking"
+import { crearZona } from "@/actions/tracking"
 import type { FieldEmployee, ClientPoint } from "@suplai/types"
 
 interface ClientPointWithClient extends ClientPoint {
@@ -16,13 +16,12 @@ interface Props {
   clientPoints: ClientPointWithClient[]
 }
 
-export function NuevoPlanForm({ schemaName, createdBy, employees, clientPoints }: Props) {
+export function NuevaZonaForm({ schemaName, createdBy, employees, clientPoints }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   const [userId, setUserId] = useState("")
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
   const [stops, setStops] = useState<ClientPointWithClient[]>([])
   const [search, setSearch] = useState("")
 
@@ -58,51 +57,36 @@ export function NuevoPlanForm({ schemaName, createdBy, employees, clientPoints }
     if (stops.length === 0) { setError("Agregá al menos un punto de venta"); return }
     setError(null)
     startTransition(async () => {
-      await createPlan(schemaName, {
+      await crearZona(schemaName, {
         userId,
-        fecha,
         createdBy,
         clientPointIds: stops.map((s) => s.id),
       })
-      router.push("/tracking/planes")
+      router.push("/tracking/zonas")
     })
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Repartidor y fecha */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Repartidor</label>
-          <select
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Seleccionar...</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>{e.nombre}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Repartidor</label>
+        <select
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Seleccionar...</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>{e.nombre}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Paradas */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Puntos de venta <span className="text-gray-400 font-normal">({stops.length} agregados)</span>
         </label>
 
-        {/* Lista de paradas agregadas */}
         {stops.length > 0 && (
           <div className="mb-3 border border-gray-200 rounded-lg divide-y divide-gray-100">
             {stops.map((stop, i) => (
@@ -117,33 +101,18 @@ export function NuevoPlanForm({ schemaName, createdBy, employees, clientPoints }
                   </p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => moveStop(i, -1)}
-                    disabled={i === 0}
-                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                    title="Subir"
-                  >↑</button>
-                  <button
-                    type="button"
-                    onClick={() => moveStop(i, 1)}
-                    disabled={i === stops.length - 1}
-                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                    title="Bajar"
-                  >↓</button>
-                  <button
-                    type="button"
-                    onClick={() => removeStop(stop.id)}
-                    className="p-1 text-red-400 hover:text-red-600"
-                    title="Quitar"
-                  >×</button>
+                  <button type="button" onClick={() => moveStop(i, -1)} disabled={i === 0}
+                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
+                  <button type="button" onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1}
+                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↓</button>
+                  <button type="button" onClick={() => removeStop(stop.id)}
+                    className="p-1 text-red-400 hover:text-red-600">×</button>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Buscador para agregar */}
         <div className="relative">
           <input
             type="text"
@@ -155,16 +124,10 @@ export function NuevoPlanForm({ schemaName, createdBy, employees, clientPoints }
           {search && available.length > 0 && (
             <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
               {available.slice(0, 10).map((cp) => (
-                <button
-                  key={cp.id}
-                  type="button"
-                  onClick={() => addStop(cp)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-0"
-                >
+                <button key={cp.id} type="button" onClick={() => addStop(cp)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-0">
                   <p className="text-sm font-medium text-gray-900">{cp.nombre}</p>
-                  <p className="text-xs text-gray-500">
-                    {cp.client_nombre}{cp.direccion ? ` · ${cp.direccion}` : " · Sin dirección"}
-                  </p>
+                  <p className="text-xs text-gray-500">{cp.client_nombre}{cp.direccion ? ` · ${cp.direccion}` : " · Sin dirección"}</p>
                 </button>
               ))}
             </div>
@@ -178,18 +141,12 @@ export function NuevoPlanForm({ schemaName, createdBy, employees, clientPoints }
       {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>}
 
       <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {isPending ? "Guardando..." : "Crear plan"}
+        <button type="submit" disabled={isPending}
+          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors">
+          {isPending ? "Guardando..." : "Crear zona"}
         </button>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-        >
+        <button type="button" onClick={() => router.back()}
+          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
           Cancelar
         </button>
       </div>

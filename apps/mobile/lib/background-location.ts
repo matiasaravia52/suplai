@@ -2,37 +2,38 @@ import * as TaskManager from "expo-task-manager"
 import * as Location from "expo-location"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { api } from "./api"
+import type { GpsPoint } from "./gps-filter"
+import { esPuntoValido } from "./gps-filter"
 
 export const BACKGROUND_LOCATION_TASK = "BACKGROUND_LOCATION"
 
 const BUFFER_KEY = "gps_buffer"
 const FLUSH_INTERVAL_MS = 30_000
 
-interface GpsPoint {
-  lat: number
-  lng: number
-  speed_kmh?: number
-  heading?: number
-  recorded_at: string
-}
-
 // Background task (solo disponible en dev/prod builds, no Expo Go)
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) return
   const { locations } = data as { locations: Location.LocationObject[] }
 
-  const points: GpsPoint[] = locations.map((loc) => ({
-    lat: loc.coords.latitude,
-    lng: loc.coords.longitude,
-    speed_kmh: loc.coords.speed != null ? Math.round(loc.coords.speed * 3.6) : undefined,
-    heading: loc.coords.heading ?? undefined,
-    recorded_at: new Date(loc.timestamp).toISOString(),
-  }))
-
   try {
     const existing = await AsyncStorage.getItem(BUFFER_KEY)
     const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
-    buffer.push(...points)
+
+    for (const loc of locations) {
+      const point: GpsPoint = {
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+        speed_kmh: loc.coords.speed != null ? Math.round(loc.coords.speed * 3.6) : undefined,
+        heading: loc.coords.heading ?? undefined,
+        accuracy_metros: loc.coords.accuracy ?? undefined,
+        recorded_at: new Date(loc.timestamp).toISOString(),
+      }
+      const ultimoGuardado = buffer.length > 0 ? buffer[buffer.length - 1] : null
+      if (esPuntoValido(point, ultimoGuardado)) {
+        buffer.push(point)
+      }
+    }
+
     if (buffer.length > 500) buffer.splice(0, buffer.length - 500)
     await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(buffer))
   } catch {
@@ -89,11 +90,20 @@ export async function startBackgroundLocation(visitId?: string): Promise<boolean
         lng: location.coords.longitude,
         speed_kmh: location.coords.speed != null ? Math.round(location.coords.speed * 3.6) : undefined,
         heading: location.coords.heading ?? undefined,
+        accuracy_metros: location.coords.accuracy ?? undefined,
         recorded_at: new Date(location.timestamp).toISOString(),
       }
-      console.log("[GPS] punto capturado:", point.lat, point.lng)
+
       const existing = await AsyncStorage.getItem(BUFFER_KEY)
       const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
+      const ultimoGuardado = buffer.length > 0 ? buffer[buffer.length - 1] : null
+
+      if (!esPuntoValido(point, ultimoGuardado)) {
+        console.log("[GPS] punto DESCARTADO:", point.lat, point.lng, "accuracy:", point.accuracy_metros)
+        return
+      }
+
+      console.log("[GPS] punto capturado:", point.lat, point.lng, "accuracy:", point.accuracy_metros)
       buffer.push(point)
       if (buffer.length > 500) buffer.splice(0, buffer.length - 500)
       await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(buffer))

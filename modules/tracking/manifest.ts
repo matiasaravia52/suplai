@@ -10,7 +10,7 @@ export const manifest: ModuleManifest = {
   isCoreModule: false,
   features: [
     { id: "field_tracking", nombre: "Tracking de campo",         defaultEnabled: true  }, // check-in/out, mapa en vivo, historial, alertas de fraude
-    { id: "route_plans",    nombre: "Hojas de ruta",             defaultEnabled: true  }, // planificación de rutas por coordinador — requiere field_tracking
+    { id: "route_plans",    nombre: "Zonas de repartidores",     defaultEnabled: true  }, // asignación permanente de puntos de venta por coordinador
     { id: "route_tracing",  nombre: "Trazabilidad de recorrido", defaultEnabled: false }, // GPS continuo — requiere app mobile (Fase 2)
     { id: "unknown_points", nombre: "Puntos no registrados",     defaultEnabled: false }, // visitas a puntos fuera del catálogo — requiere app mobile (Fase 2)
   ],
@@ -34,7 +34,7 @@ export const manifest: ModuleManifest = {
   },
   nav: [
     { label: "Tracking en vivo",    ruta: "/tracking",          permission: "tracking:field_tracking:view", feature: "field_tracking" },
-    { label: "Planes de ruta",      ruta: "/tracking/planes",   permission: "tracking:route_plans:manage",  feature: "route_plans"    },
+    { label: "Zonas",                ruta: "/tracking/zonas",    permission: "tracking:route_plans:manage",  feature: "route_plans"    },
     { label: "Historial de visitas",ruta: "/tracking/historial",permission: "tracking:field_tracking:view", feature: "field_tracking" },
     { label: "Alertas de posición", ruta: "/tracking/alertas",  permission: "tracking:field_tracking:view", feature: "field_tracking" },
   ],

@@ -2,17 +2,17 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { deletePlan } from "@/actions/tracking"
+import { eliminarZona } from "@/actions/tracking"
 
-export function DeletePlanButton({ schemaName, planId }: { schemaName: string; planId: string }) {
+export function DeleteZonaButton({ schemaName, zonaId }: { schemaName: string; zonaId: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   function handleClick() {
-    if (!confirm("¿Eliminar este plan? Esta acción no se puede deshacer.")) return
+    if (!confirm("¿Eliminar esta zona? Esta acción no se puede deshacer.")) return
     startTransition(async () => {
-      await deletePlan(schemaName, planId)
-      router.push("/tracking/planes")
+      await eliminarZona(schemaName, zonaId)
+      router.push("/tracking/zonas")
     })
   }
 

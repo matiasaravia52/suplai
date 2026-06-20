@@ -1,13 +1,15 @@
+export const dynamic = "force-dynamic"
+
 import { getTenantContext } from "@/lib/tenant"
 import { getSessionClaims } from "@/lib/session"
 import { requireFeatureAndPermission } from "@/lib/access"
-import { getPlanDetail, getFieldEmployees } from "@/actions/tracking"
-import { getTodosLosPuntosDeVenta } from "@/actions/clientes"
-import { EditarPlanForm } from "./EditarPlanForm"
+import { getZona, getFieldEmployees } from "@/actions/tracking"
+import { listAllClientPoints } from "@suplai/clients"
 import { redirect, notFound } from "next/navigation"
 import { headers } from "next/headers"
+import { EditarZonaForm } from "./EditarZonaForm"
 
-export default async function EditarPlanPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditarZonaPage({ params }: { params: Promise<{ id: string }> }) {
   const claims = await getSessionClaims()
   if (!claims) redirect("/login")
 
@@ -18,24 +20,22 @@ export default async function EditarPlanPage({ params }: { params: Promise<{ id:
   await requireFeatureAndPermission(claims, "tracking", "route_plans", "tracking:route_plans:manage")
 
   const { id } = await params
-  const [plan, employees, clientPoints] = await Promise.all([
-    getPlanDetail(ctx.schemaName, id),
+  const [zona, employees, clientPoints] = await Promise.all([
+    getZona(ctx.schemaName, id),
     getFieldEmployees(ctx.schemaName),
-    getTodosLosPuntosDeVenta(ctx.schemaName),
+    listAllClientPoints(ctx.schemaName),
   ])
-
-  if (!plan) notFound()
+  if (!zona) notFound()
 
   return (
     <div className="p-6 max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Editar plan de ruta</h1>
-        <p className="text-sm text-gray-500 mt-1">{plan.user_nombre}</p>
+        <h1 className="text-2xl font-bold text-gray-900">Editar zona — {zona.user_nombre}</h1>
       </div>
-      <EditarPlanForm
+      <EditarZonaForm
         schemaName={ctx.schemaName}
-        planId={id}
-        plan={plan}
+        zonaId={id}
+        zona={zona}
         employees={employees}
         clientPoints={clientPoints as any}
       />

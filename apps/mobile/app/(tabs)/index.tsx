@@ -1,9 +1,8 @@
-import { useCallback, useState, useEffect, useRef } from "react"
+import { useCallback, useState } from "react"
 import {
   View,
   Text,
   FlatList,
-  SectionList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -13,34 +12,22 @@ import {
 } from "react-native"
 import { useRouter } from "expo-router"
 import { useFocusEffect } from "@react-navigation/native"
-import { useActivePlan } from "../../hooks/useActivePlan"
+import { useZona } from "../../hooks/useZona"
 import { useActiveVisit } from "../../hooks/useActiveVisit"
 import { useLocation } from "../../hooks/useLocation"
 import { useStore } from "../../lib/store"
 import { api } from "../../lib/api"
 import { startBackgroundLocation, stopBackgroundLocation } from "../../lib/background-location"
-import type { RoutePlanStopDetail, ClientPoint, RoutePlanDetail, VisitWithPoint, ResultadoVisita } from "@suplai/types"
+import type { ZonaStopDetail, ClientPoint, VisitWithPoint, ResultadoVisita } from "@suplai/types"
 
 export default function HomeScreen() {
   const router = useRouter()
-  const { plans, loading, refetch } = useActivePlan()
+  const { zona, loading, refetch } = useZona()
   const { activeVisit, checkActiveVisit } = useActiveVisit()
   const { getCurrentPosition } = useLocation()
   const { setActiveVisit, gpsTracking, setGpsTracking } = useStore()
 
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const initializedRef = useRef(false)
   const [refreshing, setRefreshing] = useState(false)
-
-  // Al cargar, colapsar automáticamente los planes donde todas las paradas están visitadas
-  useEffect(() => {
-    if (plans.length === 0 || initializedRef.current) return
-    initializedRef.current = true
-    const completedIds = plans
-      .filter((p) => p.stops.length > 0 && p.stops.every((s) => s.visitado))
-      .map((p) => p.id)
-    if (completedIds.length > 0) setCollapsed(new Set(completedIds))
-  }, [plans])
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ClientPoint[]>([])
   const [searching, setSearching] = useState(false)
@@ -58,15 +45,6 @@ export default function HomeScreen() {
     await checkActiveVisit()
     setRefreshing(false)
   }, [refetch, checkActiveVisit])
-
-  const toggleSection = useCallback((planId: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(planId)) next.delete(planId)
-      else next.add(planId)
-      return next
-    })
-  }, [])
 
   const pedirResultadoPendiente = useCallback(
     (visitas: VisitWithPoint[], index: number, onDone: () => void) => {
@@ -118,12 +96,10 @@ export default function HomeScreen() {
           clientPointNombre,
           checkinAt: data.visit.checkin_at,
         })
-
         if (!gpsTracking) {
           const ok = await startBackgroundLocation()
           if (ok) setGpsTracking(true)
         }
-
         router.push("/visita-activa")
       } catch (err) {
         const message = err instanceof Error ? err.message : "Error al registrar visita"
@@ -131,7 +107,6 @@ export default function HomeScreen() {
       }
     }
 
-    // Verificar visitas pendientes de resultado antes de hacer el checkin
     try {
       const { visits } = await api.get<{ visits: VisitWithPoint[] }>("/api/tracking/my-visits?pendiente_resultado=true")
       if (visits && visits.length > 0) {
@@ -139,7 +114,7 @@ export default function HomeScreen() {
         return
       }
     } catch {
-      // Si falla la consulta, continuar igual
+      // Si falla, continuar igual
     }
 
     await doCheckin()
@@ -164,29 +139,19 @@ export default function HomeScreen() {
   const iniciarRecorrido = useCallback(async () => {
     try {
       const ok = await startBackgroundLocation()
-      if (ok) {
-        setGpsTracking(true)
-      } else {
-        Alert.alert("Permiso denegado", "Para registrar el recorrido necesitamos permiso de ubicación.")
-      }
+      if (ok) setGpsTracking(true)
+      else Alert.alert("Permiso denegado", "Para registrar el recorrido necesitamos permiso de ubicación.")
     } catch (err) {
       Alert.alert("Error al iniciar", err instanceof Error ? err.message : String(err))
     }
-  }, [])
+  }, [setGpsTracking])
 
-  const sortedPlans = [...plans].sort((a, b) => {
-    const aComplete = a.stops.length > 0 && a.stops.every((s) => s.visitado)
-    const bComplete = b.stops.length > 0 && b.stops.every((s) => s.visitado)
-    if (aComplete === bComplete) return 0
-    return aComplete ? 1 : -1
-  })
-
-  const totalStops = sortedPlans.reduce((acc, p) => acc + p.stops.length, 0)
-  const completedStops = sortedPlans.reduce((acc, p) => acc + p.stops.filter((s) => s.visitado).length, 0)
+  const stops = zona?.stops ?? []
+  const completedStops = stops.filter((s) => s.visitado).length
+  const totalStops = stops.length
 
   const finalizarRecorrido = useCallback(() => {
     const todasVisitadas = totalStops > 0 && completedStops === totalStops
-
     if (todasVisitadas) {
       Alert.alert("Finalizar recorrido", "¿Confirmar que completaste todas las paradas?", [
         { text: "Cancelar", style: "cancel" },
@@ -202,13 +167,13 @@ export default function HomeScreen() {
         ],
       )
     }
-  }, [totalStops, completedStops])
+  }, [totalStops, completedStops, setGpsTracking])
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Cargando plan...</Text>
+        <Text style={styles.loadingText}>Cargando zona...</Text>
       </View>
     )
   }
@@ -227,111 +192,85 @@ export default function HomeScreen() {
     )
   }
 
-  const hasPlan = plans.length > 0
-
-  // Secciones para SectionList
-  const sections = sortedPlans.map((plan) => ({
-    planId: plan.id,
-    title: plan.user_nombre ?? "Hoja de ruta",
-    count: plan.stops.length,
-    completed: plan.stops.filter((s) => s.visitado).length,
-    data: collapsed.has(plan.id) ? [] : plan.stops,
-  }))
+  if (!zona) {
+    return (
+      <View style={styles.container}>
+        <FlatList
+          data={searchResults}
+          keyExtractor={(item) => item.id}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListHeaderComponent={
+            <View>
+              <Text style={styles.noPlanText}>Sin zona asignada</Text>
+              <Text style={styles.searchLabel}>Buscar punto de venta</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="🔍 Nombre o dirección..."
+                value={searchQuery}
+                onChangeText={handleSearch}
+              />
+              {searching && <ActivityIndicator style={{ marginTop: 16 }} />}
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.searchResult}
+              onPress={() => handleCheckin(item.id, item.nombre)}
+            >
+              <Text style={styles.searchResultName}>{item.nombre}</Text>
+              {item.direccion ? <Text style={styles.searchResultDir}>{item.direccion}</Text> : null}
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            !searching && searchQuery.length >= 2
+              ? <Text style={styles.noResults}>Sin resultados</Text>
+              : null
+          }
+        />
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
-      {hasPlan ? (
-        <>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{completedStops}/{totalStops} paradas</Text>
-          </View>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{completedStops}/{totalStops} paradas visitadas hoy</Text>
+      </View>
 
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            renderSectionHeader={({ section }) => {
-              const isCollapsed = collapsed.has(section.planId)
-              return (
-                <TouchableOpacity
-                  style={styles.sectionHeader}
-                  onPress={() => toggleSection(section.planId)}
-                >
-                  <View style={styles.sectionLeft}>
-                    <Text style={styles.sectionTitle}>{section.title}</Text>
-                    <Text style={styles.sectionCount}>{section.completed}/{section.count}</Text>
-                  </View>
-                  <Text style={styles.chevron}>{isCollapsed ? "›" : "⌄"}</Text>
-                </TouchableOpacity>
-              )
-            }}
-            renderItem={({ item }: { item: RoutePlanStopDetail }) => (
-              <TouchableOpacity
-                style={[styles.stopItem, item.visitado && styles.stopVisited]}
-                onPress={() => { if (!item.visitado) handleCheckin(item.client_point_id, item.client_point_nombre) }}
-                disabled={item.visitado}
-              >
-                <View style={styles.stopBullet}>
-                  <View style={[styles.bullet, item.visitado && styles.bulletVisited]} />
-                </View>
-                <View style={styles.stopInfo}>
-                  <Text style={[styles.stopName, item.visitado && styles.textVisited]}>
-                    {item.client_point_nombre}
-                  </Text>
-                  {item.client_nombre ? (
-                    <Text style={styles.stopClient}>{item.client_nombre}</Text>
-                  ) : null}
-                </View>
-              </TouchableOpacity>
-            )}
-          />
+      <FlatList
+        data={stops}
+        keyExtractor={(item: ZonaStopDetail) => item.id}
+        contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        renderItem={({ item }: { item: ZonaStopDetail }) => (
+          <TouchableOpacity
+            style={[styles.stopItem, item.visitado && styles.stopVisited]}
+            onPress={() => { if (!item.visitado) handleCheckin(item.client_point_id, item.client_point_nombre) }}
+            disabled={item.visitado}
+          >
+            <View style={styles.stopBullet}>
+              <View style={[styles.bullet, item.visitado && styles.bulletVisited]} />
+            </View>
+            <View style={styles.stopInfo}>
+              <Text style={[styles.stopName, item.visitado && styles.textVisited]}>
+                {item.client_point_nombre}
+              </Text>
+              {item.client_nombre ? (
+                <Text style={styles.stopClient}>{item.client_nombre}</Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        )}
+      />
 
-          {!gpsTracking ? (
-            <TouchableOpacity style={styles.gpsButton} onPress={iniciarRecorrido}>
-              <Text style={styles.gpsButtonText}>▶ Iniciar recorrido</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.gpsButtonActive} onPress={finalizarRecorrido}>
-              <Text style={styles.gpsButtonTextActive}>■ Finalizar recorrido</Text>
-            </TouchableOpacity>
-          )}
-        </>
+      {!gpsTracking ? (
+        <TouchableOpacity style={styles.gpsButton} onPress={iniciarRecorrido}>
+          <Text style={styles.gpsButtonText}>▶ Iniciar recorrido</Text>
+        </TouchableOpacity>
       ) : (
-        <>
-          <FlatList
-            data={[]}
-            keyExtractor={() => ""}
-            renderItem={() => null}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            ListHeaderComponent={
-              <View>
-                <Text style={styles.noPlanText}>Sin plan asignado para hoy</Text>
-                <Text style={styles.searchLabel}>Buscar punto de venta</Text>
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="🔍 Nombre o dirección..."
-                  value={searchQuery}
-                  onChangeText={handleSearch}
-                />
-                {searching && <ActivityIndicator style={{ marginTop: 16 }} />}
-                {!searching && searchResults.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.searchResult}
-                    onPress={() => handleCheckin(item.id, item.nombre)}
-                  >
-                    <Text style={styles.searchResultName}>{item.nombre}</Text>
-                    {item.direccion ? <Text style={styles.searchResultDir}>{item.direccion}</Text> : null}
-                  </TouchableOpacity>
-                ))}
-                {!searching && searchQuery.length >= 2 && searchResults.length === 0 && (
-                  <Text style={styles.noResults}>Sin resultados</Text>
-                )}
-              </View>
-            }
-          />
-        </>
+        <TouchableOpacity style={styles.gpsButtonActive} onPress={finalizarRecorrido}>
+          <Text style={styles.gpsButtonTextActive}>■ Finalizar recorrido</Text>
+        </TouchableOpacity>
       )}
     </View>
   )
@@ -344,21 +283,6 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
   headerTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
   list: { paddingBottom: 8 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-    backgroundColor: "#f9f9f9",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  sectionLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#555", textTransform: "uppercase" },
-  sectionCount: { fontSize: 12, color: "#999" },
-  chevron: { fontSize: 18, color: "#999", lineHeight: 20 },
   stopItem: {
     flexDirection: "row",
     alignItems: "center",

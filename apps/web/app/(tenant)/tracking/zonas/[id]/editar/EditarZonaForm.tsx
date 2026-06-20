@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { updatePlan } from "@/actions/tracking"
-import type { FieldEmployee, ClientPoint, RoutePlanDetail } from "@suplai/types"
+import { editarZona } from "@/actions/tracking"
+import type { FieldEmployee, ClientPoint, ZonaDetail } from "@suplai/types"
 
 interface ClientPointWithClient extends ClientPoint {
   client_nombre: string
@@ -11,21 +11,20 @@ interface ClientPointWithClient extends ClientPoint {
 
 interface Props {
   schemaName: string
-  planId: string
-  plan: RoutePlanDetail
+  zonaId: string
+  zona: ZonaDetail
   employees: FieldEmployee[]
   clientPoints: ClientPointWithClient[]
 }
 
-export function EditarPlanForm({ schemaName, planId, plan, employees, clientPoints }: Props) {
+export function EditarZonaForm({ schemaName, zonaId, zona, employees, clientPoints }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  const [userId, setUserId] = useState(plan.user_id)
-  const [fecha, setFecha] = useState(plan.fecha)
+  const [userId, setUserId] = useState(zona.user_id)
 
-  const initialStops = plan.stops.map((s) => {
+  const initialStops = zona.stops.map((s) => {
     const cp = clientPoints.find((cp) => cp.id === s.client_point_id)
     return cp ?? {
       id: s.client_point_id,
@@ -76,40 +75,28 @@ export function EditarPlanForm({ schemaName, planId, plan, employees, clientPoin
     if (stops.length === 0) { setError("Agregá al menos un punto de venta"); return }
     setError(null)
     startTransition(async () => {
-      await updatePlan(schemaName, planId, {
+      await editarZona(schemaName, zonaId, {
         userId,
-        fecha,
         clientPointIds: stops.map((s) => s.id),
       })
-      router.push(`/tracking/planes/${planId}`)
+      router.push(`/tracking/zonas/${zonaId}`)
     })
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Repartidor</label>
-          <select
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Seleccionar...</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>{e.nombre}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Repartidor</label>
+        <select
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Seleccionar...</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>{e.nombre}</option>
+          ))}
+        </select>
       </div>
 
       <div>

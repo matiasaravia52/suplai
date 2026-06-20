@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import type { Session } from "@supabase/supabase-js"
-import type { RoutePlanDetail } from "@suplai/types"
+import type { ZonaDetail } from "@suplai/types"
 
 interface ActiveVisit {
   visitId: string
@@ -18,10 +18,10 @@ interface AppStore {
   setSession: (session: Session, apiBaseUrl: string) => void
   clearSession: () => void
 
-  plans: RoutePlanDetail[]
-  planLoading: boolean
-  setPlans: (plans: RoutePlanDetail[]) => void
-  setPlanLoading: (loading: boolean) => void
+  zona: ZonaDetail | null
+  zonaLoading: boolean
+  setZona: (zona: ZonaDetail | null) => void
+  setZonaLoading: (loading: boolean) => void
 
   gpsTracking: boolean
   setGpsTracking: (v: boolean) => void
@@ -42,12 +42,12 @@ export const useStore = create<AppStore>()(
         set({ session, apiBaseUrl }),
 
       clearSession: () =>
-        set({ session: null, apiBaseUrl: null, plans: [], activeVisit: null }),
+        set({ session: null, apiBaseUrl: null, zona: null, activeVisit: null }),
 
-      plans: [],
-      planLoading: false,
-      setPlans: (plans) => set({ plans, planLoading: false }),
-      setPlanLoading: (planLoading) => set({ planLoading }),
+      zona: null,
+      zonaLoading: false,
+      setZona: (zona) => set({ zona, zonaLoading: false }),
+      setZonaLoading: (zonaLoading) => set({ zonaLoading }),
 
       gpsTracking: false,
       setGpsTracking: (gpsTracking) => set({ gpsTracking }),

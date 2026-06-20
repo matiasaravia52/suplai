@@ -2,12 +2,12 @@
 
 import {
   listFieldEmployees, listVisits, listFraudAlerts, getRoutePoints,
-  createRoutePlan, listRoutePlans, getRoutePlanDetail, getActivePlanForEmployee,
-  deleteRoutePlan, updateRoutePlan, setResultadoSupervisor,
-  getEmployeesWithActivityOnDate, getRoutePointsForDate,
+  createZona, listZonas, getZonaDetail, getZonaDetailForDate, getZonaForEmployee,
+  deleteZona, updateZona, setResultadoSupervisor,
+  getEmployeesWithZona, getRoutePointsForDate,
 } from "@suplai/tracking/service"
 import { revalidatePath } from "next/cache"
-import type { FieldEmployee, VisitFilters, AlertFilters, RoutePoint, RoutePlanEstado, ResultadoVisita } from "@suplai/types"
+import type { FieldEmployee, VisitFilters, AlertFilters, RoutePoint, ResultadoVisita } from "@suplai/types"
 
 export async function getFieldEmployees(schemaName: string): Promise<FieldEmployee[]> {
   return listFieldEmployees(schemaName)
@@ -29,53 +29,52 @@ export async function getEmployeeRoute(
   return getRoutePoints(schemaName, userId, visitId)
 }
 
-export async function createPlan(
+export async function crearZona(
   schemaName: string,
-  input: { userId: string; fecha: string; createdBy: string; clientPointIds: string[] },
+  input: { userId: string; nombre?: string; createdBy: string; clientPointIds: string[] },
 ) {
-  return createRoutePlan(schemaName, input)
+  const zona = await createZona(schemaName, input)
+  revalidatePath("/tracking/zonas")
+  return zona
 }
 
-export async function getPlans(
+export async function getZonas(schemaName: string, filters: { userId?: string } = {}) {
+  return listZonas(schemaName, filters)
+}
+
+export async function getZona(schemaName: string, zonaId: string) {
+  return getZonaDetail(schemaName, zonaId)
+}
+
+export async function getZonaConFecha(schemaName: string, zonaId: string, fecha: string) {
+  return getZonaDetailForDate(schemaName, zonaId, fecha)
+}
+
+export async function getZonaEmpleado(schemaName: string, userId: string) {
+  return getZonaForEmployee(schemaName, userId)
+}
+
+export async function eliminarZona(schemaName: string, zonaId: string) {
+  await deleteZona(schemaName, zonaId)
+  revalidatePath("/tracking/zonas")
+}
+
+export async function editarZona(
   schemaName: string,
-  filters: { fecha?: string; userId?: string; estado?: RoutePlanEstado } = {},
+  zonaId: string,
+  input: { userId: string; nombre?: string; clientPointIds: string[] },
 ) {
-  return listRoutePlans(schemaName, filters)
+  await updateZona(schemaName, zonaId, input)
+  revalidatePath("/tracking/zonas")
+  revalidatePath(`/tracking/zonas/${zonaId}`)
 }
 
-export async function getPlanDetail(schemaName: string, planId: string) {
-  return getRoutePlanDetail(schemaName, planId)
+export async function getEmpleadosConZona(schemaName: string) {
+  return getEmployeesWithZona(schemaName)
 }
 
-export async function getEmployeeActivePlan(schemaName: string, userId: string) {
-  return getActivePlanForEmployee(schemaName, userId)
-}
-
-export async function deletePlan(schemaName: string, planId: string) {
-  await deleteRoutePlan(schemaName, planId)
-  revalidatePath("/tracking/planes")
-}
-
-export async function updatePlan(
-  schemaName: string,
-  planId: string,
-  input: { userId: string; fecha: string; clientPointIds: string[] },
-) {
-  await updateRoutePlan(schemaName, planId, input)
-  revalidatePath("/tracking/planes")
-  revalidatePath(`/tracking/planes/${planId}`)
-}
-
-export async function getEmployeesOnDate(schemaName: string, fecha: string) {
-  return getEmployeesWithActivityOnDate(schemaName, fecha)
-}
-
-export async function getPlansForEmployee(schemaName: string, userId: string, fecha: string) {
-  return listRoutePlans(schemaName, { userId, fecha })
-}
-
-export async function getRouteForDate(schemaName: string, userId: string, fecha: string, planId?: string) {
-  return getRoutePointsForDate(schemaName, userId, fecha, planId)
+export async function getRouteForDate(schemaName: string, userId: string, fecha: string) {
+  return getRoutePointsForDate(schemaName, userId, fecha)
 }
 
 export async function marcarResultadoVisita(
