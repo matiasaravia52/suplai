@@ -128,6 +128,7 @@ export function TrackingMap({ employees, schemaName, accessToken, routePoints = 
 
   // Recorrido GPS real
   useEffect(() => {
+    console.log("[TrackingMap] routePoints update:", routePoints.length, "mapReady:", mapReady.current)
     const draw = () => {
       const m = map.current
       if (!m || !mapReady.current) return

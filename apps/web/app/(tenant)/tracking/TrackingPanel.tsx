@@ -105,8 +105,12 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
         getPlanDetail(schemaName, planId),
         getRouteForDate(schemaName, userId, fecha),
       ])
+      console.log("[Tracking] plan detail:", detail?.id, "stops:", detail?.stops?.length)
+      console.log("[Tracking] route points:", points?.length, "userId:", userId, "fecha:", fecha)
       setActivePlan(detail)
       setRoutePoints(points)
+    } catch (err) {
+      console.error("[Tracking] error cargando plan:", err)
     } finally {
       setLoadingPlan(false)
     }
