@@ -21,37 +21,39 @@ interface Section {
   data: VisitRow[]
 }
 
+function toLocalDateStr(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
+}
+
 function groupByDay(visits: VisitRow[]): Section[] {
-  const groups: Record<string, VisitRow[]> = {}
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = yesterday.toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
+
+  const groups: Record<string, { data: VisitRow[]; dateStr: string }> = {}
 
   for (const v of visits) {
-    const date = new Date(v.checkin_at)
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
+    const dateStr = toLocalDateStr(v.checkin_at)
     let label: string
-    if (date.toDateString() === today.toDateString()) {
+    if (dateStr === todayStr) {
       label = "Hoy"
-    } else if (date.toDateString() === yesterday.toDateString()) {
+    } else if (dateStr === yesterdayStr) {
       label = "Ayer"
     } else {
-      label = date.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })
+      label = new Date(dateStr + "T12:00:00").toLocaleDateString("es-AR", {
+        weekday: "long", day: "numeric", month: "long",
+      })
       label = label.charAt(0).toUpperCase() + label.slice(1)
     }
 
-    if (!groups[label]) groups[label] = []
-    groups[label].push(v)
+    if (!groups[label]) groups[label] = { data: [], dateStr }
+    groups[label].data.push(v)
   }
 
-  const order = ["Hoy", "Ayer"]
   return Object.entries(groups)
-    .sort(([a], [b]) => {
-      const ai = order.indexOf(a)
-      const bi = order.indexOf(b)
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
-    })
-    .map(([title, data]) => ({ title, data }))
+    .sort(([, a], [, b]) => b.dateStr.localeCompare(a.dateStr))
+    .map(([title, { data }]) => ({ title, data }))
 }
 
 function formatTime(iso: string): string {

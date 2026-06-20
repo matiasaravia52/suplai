@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  RefreshControl,
 } from "react-native"
 import { useRouter } from "expo-router"
 import { useFocusEffect } from "@react-navigation/native"
@@ -30,8 +31,16 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<ClientPoint[]>([])
   const [searching, setSearching] = useState(false)
 
+  const [refreshing, setRefreshing] = useState(false)
   const completedCount = plan?.stops.filter((s) => s.visitado).length ?? 0
   const totalCount = plan?.stops.length ?? 0
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await refetch()
+    await checkActiveVisit()
+    setRefreshing(false)
+  }, [refetch, checkActiveVisit])
 
   // Al recuperar el foco: refetch plan + sincronizar visita activa con el servidor
   useFocusEffect(
@@ -183,6 +192,7 @@ export default function HomeScreen() {
             data={plan.stops}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[styles.stopItem, item.visitado && styles.stopVisited]}
