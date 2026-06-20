@@ -13,6 +13,7 @@ import { useStore } from "../lib/store"
 import { useLocation } from "../hooks/useLocation"
 import { useTripTracking } from "../hooks/useTripTracking"
 import { api } from "../lib/api"
+import type { ResultadoVisita } from "@suplai/types"
 
 function formatTimer(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -29,6 +30,7 @@ export default function VisitaActivaScreen() {
 
   const [elapsed, setElapsed] = useState(0)
   const [checkingOut, setCheckingOut] = useState(false)
+  const [resultado, setResultado] = useState<ResultadoVisita | null>(null)
 
   useEffect(() => {
     if (!activeVisit) {
@@ -44,30 +46,22 @@ export default function VisitaActivaScreen() {
     return () => clearInterval(interval)
   }, [activeVisit, router])
 
-  const handleCheckout = useCallback(async () => {
+  const handleCheckout = useCallback(async (res: ResultadoVisita) => {
     if (!activeVisit) return
     setCheckingOut(true)
 
     try {
-      // Intentar obtener posición — primero la última conocida (instantáneo),
-      // luego posición actual con timeout. Si falla, hacer checkout igual sin coords.
       let lat: number | null = null
       let lng: number | null = null
 
       try {
         const last = await Location.getLastKnownPositionAsync()
-        if (last) {
-          lat = last.coords.latitude
-          lng = last.coords.longitude
-        }
+        if (last) { lat = last.coords.latitude; lng = last.coords.longitude }
         const current = await Promise.race([
           getCurrentPosition(),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
         ])
-        if (current) {
-          lat = current.lat
-          lng = current.lng
-        }
+        if (current) { lat = current.lat; lng = current.lng }
       } catch {
         // Continuar con lo que tengamos
       }
@@ -78,6 +72,7 @@ export default function VisitaActivaScreen() {
         visitId: activeVisit.visitId,
         lat: lat ?? 0,
         lng: lng ?? 0,
+        resultado: res,
       })
 
       clearActiveVisit()
@@ -89,6 +84,19 @@ export default function VisitaActivaScreen() {
       setCheckingOut(false)
     }
   }, [activeVisit, getCurrentPosition, finalFlush, clearActiveVisit, router])
+
+  const confirmarSalida = useCallback((res: ResultadoVisita) => {
+    setResultado(res)
+    const label = res === "venta" ? "Venta" : "Sin venta"
+    Alert.alert(
+      "Confirmar salida",
+      `Marcás esta visita como: ${label}`,
+      [
+        { text: "Cancelar", style: "cancel", onPress: () => setResultado(null) },
+        { text: "Confirmar", onPress: () => handleCheckout(res) },
+      ]
+    )
+  }, [handleCheckout])
 
   if (!activeVisit) {
     return (
@@ -108,43 +116,46 @@ export default function VisitaActivaScreen() {
           <Text style={styles.timer}>{formatTimer(elapsed)}</Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.checkoutButton, checkingOut && styles.buttonDisabled]}
-          onPress={handleCheckout}
-          disabled={checkingOut}
-        >
-          {checkingOut ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.checkoutText}>Me voy</Text>
-          )}
-        </TouchableOpacity>
+        <Text style={styles.resultLabel}>¿Cómo fue la visita?</Text>
+
+        <View style={styles.resultRow}>
+          <TouchableOpacity
+            style={[styles.resultBtn, styles.ventaBtn, checkingOut && styles.buttonDisabled]}
+            onPress={() => confirmarSalida("venta")}
+            disabled={checkingOut}
+          >
+            {checkingOut && resultado === "venta"
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.resultBtnText}>✓ Venta</Text>
+            }
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.resultBtn, styles.noVentaBtn, checkingOut && styles.buttonDisabled]}
+            onPress={() => confirmarSalida("no_venta")}
+            disabled={checkingOut}
+          >
+            {checkingOut && resultado === "no_venta"
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.resultBtnText}>✗ Sin venta</Text>
+            }
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
   content: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
   },
-  label: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 4,
-  },
+  label: { fontSize: 16, color: "#666", marginBottom: 4 },
   name: {
     fontSize: 22,
     fontWeight: "700",
@@ -152,29 +163,33 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 32,
   },
-  timerContainer: {
-    marginBottom: 40,
-  },
+  timerContainer: { marginBottom: 32 },
   timer: {
     fontSize: 48,
     fontWeight: "300",
     color: "#2563eb",
     fontVariant: ["tabular-nums"],
   },
-  checkoutButton: {
+  resultLabel: {
+    fontSize: 15,
+    color: "#555",
+    marginBottom: 16,
+    fontWeight: "500",
+  },
+  resultRow: {
+    flexDirection: "row",
+    gap: 12,
     width: "100%",
+  },
+  resultBtn: {
+    flex: 1,
     height: 52,
-    backgroundColor: "#ef4444",
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  checkoutText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
+  ventaBtn: { backgroundColor: "#16a34a" },
+  noVentaBtn: { backgroundColor: "#ef4444" },
+  buttonDisabled: { opacity: 0.6 },
+  resultBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 })

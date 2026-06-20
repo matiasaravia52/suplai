@@ -126,11 +126,15 @@ export async function checkout(
   userId: string,
   lat: number,
   lng: number,
+  resultado?: "venta" | "no_venta",
 ): Promise<Visit> {
   return withTenantSchema(schemaName, async (db) => {
     const visitRows = await db<Visit[]>`
       update tracking__visits
-      set checkout_at = now(), checkout_lat = ${lat}, checkout_lng = ${lng}
+      set checkout_at  = now(),
+          checkout_lat = ${lat},
+          checkout_lng = ${lng},
+          resultado    = ${resultado ?? null}
       where id = ${visitId}
         and user_id = ${userId}
         and checkout_at is null
