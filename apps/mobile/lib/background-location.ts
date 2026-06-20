@@ -8,6 +8,7 @@ import { esPuntoValido } from "./gps-filter"
 export const BACKGROUND_LOCATION_TASK = "BACKGROUND_LOCATION"
 
 const BUFFER_KEY = "gps_buffer"
+const LAST_POINT_KEY = "gps_last_point"
 const FLUSH_INTERVAL_MS = 30_000
 
 // Background task (solo disponible en dev/prod builds, no Expo Go)
@@ -16,8 +17,12 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   const { locations } = data as { locations: Location.LocationObject[] }
 
   try {
-    const existing = await AsyncStorage.getItem(BUFFER_KEY)
+    const [existing, lastSentRaw] = await Promise.all([
+      AsyncStorage.getItem(BUFFER_KEY),
+      AsyncStorage.getItem(LAST_POINT_KEY),
+    ])
     const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
+    const lastSentPoint: GpsPoint | null = lastSentRaw ? JSON.parse(lastSentRaw) : null
 
     for (const loc of locations) {
       const point: GpsPoint = {
@@ -28,7 +33,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
         accuracy_metros: loc.coords.accuracy != null ? Math.round(loc.coords.accuracy) : undefined,
         recorded_at: new Date(loc.timestamp).toISOString(),
       }
-      const ultimoGuardado = buffer.length > 0 ? buffer[buffer.length - 1] : null
+      const ultimoGuardado = buffer.length > 0 ? buffer[buffer.length - 1] : lastSentPoint
       if (esPuntoValido(point, ultimoGuardado)) {
         buffer.push(point)
       }
@@ -47,7 +52,10 @@ export async function getBufferedPoints(): Promise<GpsPoint[]> {
 }
 
 export async function clearBuffer(): Promise<void> {
-  await AsyncStorage.removeItem(BUFFER_KEY)
+  await Promise.all([
+    AsyncStorage.removeItem(BUFFER_KEY),
+    AsyncStorage.removeItem(LAST_POINT_KEY),
+  ])
 }
 
 async function flushBuffer(visitId?: string): Promise<void> {
@@ -60,7 +68,11 @@ async function flushBuffer(visitId?: string): Promise<void> {
     console.log("[GPS] flush →", buffer.length, "puntos, visitId:", visitId)
     const res = await api.post<{ ok: boolean; count: number }>("/api/tracking/flush", { points: buffer, visitId })
     console.log("[GPS] flush OK:", res)
-    await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify([]))
+    const lastPoint = buffer[buffer.length - 1]
+    await Promise.all([
+      AsyncStorage.setItem(BUFFER_KEY, JSON.stringify([])),
+      AsyncStorage.setItem(LAST_POINT_KEY, JSON.stringify(lastPoint)),
+    ])
   } catch (err) {
     console.error("[GPS] flush ERROR:", err instanceof Error ? err.message : err)
   }
@@ -98,7 +110,9 @@ export async function startBackgroundLocation(visitId?: string): Promise<boolean
 
       const existing = await AsyncStorage.getItem(BUFFER_KEY)
       const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
-      const ultimoGuardado = buffer.length > 0 ? buffer[buffer.length - 1] : null
+      const lastSentRaw = buffer.length === 0 ? await AsyncStorage.getItem(LAST_POINT_KEY) : null
+      const ultimoGuardado: GpsPoint | null =
+        buffer.length > 0 ? buffer[buffer.length - 1] : lastSentRaw ? JSON.parse(lastSentRaw) : null
 
       if (!esPuntoValido(point, ultimoGuardado)) {
         console.log("[GPS] punto DESCARTADO:", point.lat, point.lng, "accuracy:", point.accuracy_metros)
