@@ -1,5 +1,6 @@
 import { useStore } from "./store"
 import { supabase } from "./supabase"
+import { router } from "expo-router"
 
 let _baseUrl: string | null = null
 
@@ -40,6 +41,12 @@ async function apiFetch<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
+    if (res.status === 401) {
+      // Sesión expirada — limpiar y redirigir al login
+      useStore.getState().clearSession()
+      await supabase.auth.signOut()
+      router.replace("/login")
+    }
     throw new Error(body.error ?? `Error HTTP ${res.status}`)
   }
 
