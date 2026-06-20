@@ -187,7 +187,7 @@ export async function flushRoutePoints(
           lng:             p.lng,
           speed_kmh:       p.speed_kmh ?? null,
           heading:         p.heading ?? null,
-          accuracy_metros: p.accuracy_metros ?? null,
+          accuracy_metros: p.accuracy_metros != null ? Math.round(p.accuracy_metros) : null,
           recorded_at:     p.recorded_at,
         })),
       )}
