@@ -145,5 +145,10 @@ export async function runMigrations(schemaName: string): Promise<void> {
         on tracking__zona_stops (zona_id, orden)
     `)
 
+    // 008: accuracy_metros como double precision (GPS devuelve decimales)
+    await db.unsafe(`
+      alter table tracking__route_points
+        alter column accuracy_metros type double precision
+    `)
   })
 }
