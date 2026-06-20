@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { createTenant } from "@/actions/tenants"
 
-export default function NewTenantPage() {
+export default function NewTenantPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()

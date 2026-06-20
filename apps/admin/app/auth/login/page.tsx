@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { login } from "@/actions/auth"
 
-export default function LoginPage() {
+export default function LoginPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 

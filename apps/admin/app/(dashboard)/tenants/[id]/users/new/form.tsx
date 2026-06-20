@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { createTenantUser } from "@/actions/users"
 
-export default function NewUserForm({ tenantId, schemaName }: { tenantId: string; schemaName: string }) {
+export default function NewUserForm({ tenantId, schemaName }: { tenantId: string; schemaName: string }): React.ReactElement {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()

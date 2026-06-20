@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Panel de administración de Suplai",
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
     <html lang="es">
       <body className="antialiased">{children}</body>

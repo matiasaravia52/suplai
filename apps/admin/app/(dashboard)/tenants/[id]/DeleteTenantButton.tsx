@@ -9,7 +9,7 @@ export function DeleteTenantButton({
 }: {
   tenantId: string
   tenantNombre: string
-}) {
+}): React.ReactElement {
   const [isPending, startTransition] = useTransition()
 
   function handleClick() {
