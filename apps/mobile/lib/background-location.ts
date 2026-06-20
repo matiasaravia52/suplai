@@ -45,18 +45,36 @@ export async function clearBuffer(): Promise<void> {
 }
 
 export async function startBackgroundLocation() {
-  const { status } = await Location.requestBackgroundPermissionsAsync()
-  if (status !== "granted") return false
+  // Expo Go no soporta background permissions ni foreground service.
+  // Intentamos background; si falla, usamos foreground como fallback para testing.
+  let useBackground = false
+  try {
+    const { status } = await Location.requestBackgroundPermissionsAsync()
+    useBackground = status === "granted"
+  } catch {
+    // Expo Go rechaza esta llamada — continuamos con foreground
+  }
 
-  await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+  if (!useBackground) {
+    const { status } = await Location.requestForegroundPermissionsAsync()
+    if (status !== "granted") return false
+  }
+
+  const options: Location.LocationTaskOptions = {
     accuracy: Location.Accuracy.High,
     distanceInterval: 50,
     timeInterval: 10000,
-    foregroundService: {
+  }
+
+  // foregroundService solo disponible en dev/prod builds de Android
+  if (useBackground) {
+    options.foregroundService = {
       notificationTitle: "Suplai",
       notificationBody: "Registrando tu recorrido...",
-    },
-  })
+    }
+  }
+
+  await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, options)
   return true
 }
 
