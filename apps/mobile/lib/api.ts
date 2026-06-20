@@ -1,11 +1,10 @@
 import { useStore } from "./store"
+import { supabase } from "./supabase"
 
 let _baseUrl: string | null = null
-let _token: string | null = null
 
-export function setApiAuth(baseUrl: string, token: string) {
+export function setApiAuth(baseUrl: string, _token: string) {
   _baseUrl = baseUrl.replace(/\/+$/, "")
-  _token = token
 }
 
 export function getApiBaseUrl(): string | null {
@@ -13,9 +12,10 @@ export function getApiBaseUrl(): string | null {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { session } = useStore.getState()
-  const token = session?.access_token ?? _token
-  if (!token) throw new Error("No autenticado")
+  // Siempre pedir el token fresco a Supabase — maneja el refresh automático
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error("No autorizado")
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,

@@ -3,12 +3,26 @@ import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-r
 import { StatusBar } from "expo-status-bar"
 import { useStore } from "../lib/store"
 import { setApiAuth } from "../lib/api"
+import { supabase } from "../lib/supabase"
 
 function AuthGuard() {
-  const { session, apiBaseUrl } = useStore()
+  const { session, apiBaseUrl, setSession, clearSession } = useStore()
   const segments = useSegments()
   const router = useRouter()
   const navigationRef = useNavigationContainerRef()
+
+  // Escuchar cambios de sesión de Supabase (refresh de token, logout, etc.)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (newSession && apiBaseUrl) {
+        setSession(newSession, apiBaseUrl)
+        setApiAuth(apiBaseUrl, newSession.access_token)
+      } else if (event === "SIGNED_OUT") {
+        clearSession()
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [apiBaseUrl, setSession, clearSession])
 
   useEffect(() => {
     if (session && apiBaseUrl) {
