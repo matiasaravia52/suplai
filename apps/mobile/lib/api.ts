@@ -19,9 +19,19 @@ async function logout() {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
+  // Pedir sesión refrescada — Supabase renueva el access_token si está por vencer
   const { data: { session } } = await supabase.auth.getSession()
   const token = session?.access_token
+
   if (!token) {
+    // Intentar un refresh explícito antes de desloguear
+    const { data: refreshed } = await supabase.auth.refreshSession()
+    if (refreshed.session?.access_token) {
+      return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${refreshed.session.access_token}`,
+      }
+    }
     await logout()
     throw new Error("No autorizado")
   }
