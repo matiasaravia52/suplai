@@ -25,7 +25,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
         lng: loc.coords.longitude,
         speed_kmh: loc.coords.speed != null ? Math.round(loc.coords.speed * 3.6) : undefined,
         heading: loc.coords.heading ?? undefined,
-        accuracy_metros: loc.coords.accuracy ?? undefined,
+        accuracy_metros: loc.coords.accuracy != null ? Math.round(loc.coords.accuracy) : undefined,
         recorded_at: new Date(loc.timestamp).toISOString(),
       }
       const ultimoGuardado = buffer.length > 0 ? buffer[buffer.length - 1] : null
@@ -92,7 +92,7 @@ export async function startBackgroundLocation(visitId?: string): Promise<boolean
         lng: location.coords.longitude,
         speed_kmh: location.coords.speed != null ? Math.round(location.coords.speed * 3.6) : undefined,
         heading: location.coords.heading ?? undefined,
-        accuracy_metros: location.coords.accuracy ?? undefined,
+        accuracy_metros: location.coords.accuracy != null ? Math.round(location.coords.accuracy) : undefined,
         recorded_at: new Date(location.timestamp).toISOString(),
       }
 
