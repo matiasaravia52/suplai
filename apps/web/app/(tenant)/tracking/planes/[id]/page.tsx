@@ -8,6 +8,7 @@ import { redirect, notFound } from "next/navigation"
 import { headers } from "next/headers"
 import Link from "next/link"
 import { DeletePlanButton } from "./DeletePlanButton"
+import { AutoRefresh } from "./AutoRefresh"
 
 export default async function PlanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const claims = await getSessionClaims()
@@ -27,6 +28,7 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="p-6 max-w-2xl">
+      <AutoRefresh intervalMs={10_000} />
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
