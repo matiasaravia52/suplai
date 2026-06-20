@@ -8,8 +8,7 @@ import {
   getZonaConFecha,
   getRouteForDate,
 } from "@/actions/tracking"
-import { createClient } from "@/lib/supabase/client"
-import type { FieldEmployee, RoutePoint, ZonaDetail, EmployeeStatus } from "@suplai/types"
+import type { FieldEmployee, RoutePoint, ZonaDetail } from "@suplai/types"
 
 const TrackingMap = dynamic(
   () => import("@/components/tracking/TrackingMap").then((m) => m.TrackingMap),
@@ -40,7 +39,7 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
   const [activeZona, setActiveZona] = useState<ZonaDetail | null>(null)
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([])
   const [loadingZona, setLoadingZona] = useState(false)
-  const selectedEmployeeIdRef = useRef(selectedEmployeeId)
+  const selectedEmployeeIdRef = useRef<string | undefined>(undefined)
   const fechaRef = useRef(fecha)
   useEffect(() => { selectedEmployeeIdRef.current = selectedEmployeeId }, [selectedEmployeeId])
   useEffect(() => { fechaRef.current = fecha }, [fecha])
@@ -59,30 +58,18 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fecha])
 
-  // Realtime: actualizar posición del empleado seleccionado y recargar ruta GPS
+  // Polling cada 10s para actualizar posiciones y ruta del empleado seleccionado
   useEffect(() => {
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`panel-employee-status-${schemaName}`)
-      .on(
-        "postgres_changes" as any,
-        { event: "*", schema: schemaName, table: "tracking__employee_status" },
-        async (payload: { new: EmployeeStatus }) => {
-          const status = payload.new
-          // Actualizar posición en la lista de empleados
-          setEmployees((prev) =>
-            prev.map((e) => e.id === status.user_id ? { ...e, status } : e)
-          )
-          // Si es el empleado seleccionado, recargar ruta (en fecha de hoy)
-          const empId = selectedEmployeeIdRef.current
-          if (status.user_id === empId) {
-            const pts = await getRouteForDate(schemaName, empId, fechaRef.current)
-            setRoutePoints(pts)
-          }
-        }
-      )
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    const tick = async () => {
+      const [fresh, empId] = [await getEmpleadosConZona(schemaName), selectedEmployeeIdRef.current]
+      setEmployees(fresh)
+      if (empId) {
+        const pts = await getRouteForDate(schemaName, empId, fechaRef.current)
+        setRoutePoints(pts)
+      }
+    }
+    const id = setInterval(tick, 10_000)
+    return () => clearInterval(id)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schemaName])
 
