@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
 import {
   getEmpleadosConZona,
@@ -8,7 +8,8 @@ import {
   getZonaConFecha,
   getRouteForDate,
 } from "@/actions/tracking"
-import type { FieldEmployee, RoutePoint, ZonaDetail } from "@suplai/types"
+import { createClient } from "@/lib/supabase/client"
+import type { FieldEmployee, RoutePoint, ZonaDetail, EmployeeStatus } from "@suplai/types"
 
 const TrackingMap = dynamic(
   () => import("@/components/tracking/TrackingMap").then((m) => m.TrackingMap),
@@ -39,6 +40,10 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
   const [activeZona, setActiveZona] = useState<ZonaDetail | null>(null)
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([])
   const [loadingZona, setLoadingZona] = useState(false)
+  const selectedEmployeeIdRef = useRef(selectedEmployeeId)
+  const fechaRef = useRef(fecha)
+  useEffect(() => { selectedEmployeeIdRef.current = selectedEmployeeId }, [selectedEmployeeId])
+  useEffect(() => { fechaRef.current = fecha }, [fecha])
 
   // Cargar empleados con zona al montar (la lista no depende de la fecha)
   useEffect(() => {
@@ -53,6 +58,33 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
     loadZonaAndRoute(selectedEmployeeId, fecha)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fecha])
+
+  // Realtime: actualizar posición del empleado seleccionado y recargar ruta GPS
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`panel-employee-status-${schemaName}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: schemaName, table: "tracking__employee_status" },
+        async (payload: { new: EmployeeStatus }) => {
+          const status = payload.new
+          // Actualizar posición en la lista de empleados
+          setEmployees((prev) =>
+            prev.map((e) => e.id === status.user_id ? { ...e, status } : e)
+          )
+          // Si es el empleado seleccionado, recargar ruta (en fecha de hoy)
+          const empId = selectedEmployeeIdRef.current
+          if (status.user_id === empId) {
+            const pts = await getRouteForDate(schemaName, empId, fechaRef.current)
+            setRoutePoints(pts)
+          }
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schemaName])
 
   async function loadZonaAndRoute(employeeId: string, targetFecha: string) {
     setActiveZona(null)
@@ -140,7 +172,7 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
       {/* Mapa — siempre montado */}
       <div className="flex-1 p-3 relative">
         <TrackingMap
-          employees={selectedEmployee ? [selectedEmployee] : []}
+          employees={employees}
           schemaName={schemaName}
           accessToken={mapboxToken}
           routePoints={routePoints}
