@@ -222,10 +222,18 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
         )}
       </div>
 
-      {/* Mapa */}
-      <div className="flex-1 p-3">
-        {!selectedPlanId ? (
-          <div className="w-full h-full bg-gray-50 rounded-lg flex items-center justify-center">
+      {/* Mapa — siempre montado para que Mapbox inicialice antes de que lleguen los datos */}
+      <div className="flex-1 p-3 relative">
+        <TrackingMap
+          employees={selectedEmployee ? [selectedEmployee] : []}
+          schemaName={schemaName}
+          accessToken={mapboxToken}
+          routePoints={routePoints}
+          activePlan={activePlan}
+          selectedUserId={selectedEmployeeId}
+        />
+        {!selectedPlanId && (
+          <div className="absolute inset-3 bg-gray-50/90 rounded-lg flex items-center justify-center pointer-events-none">
             <div className="text-center text-gray-400">
               <div className="text-4xl mb-3">🗺️</div>
               <p className="text-sm font-medium">
@@ -233,15 +241,6 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
               </p>
             </div>
           </div>
-        ) : (
-          <TrackingMap
-            employees={selectedEmployee ? [selectedEmployee] : []}
-            schemaName={schemaName}
-            accessToken={mapboxToken}
-            routePoints={routePoints}
-            activePlan={activePlan}
-            selectedUserId={selectedEmployeeId}
-          />
         )}
       </div>
     </div>
