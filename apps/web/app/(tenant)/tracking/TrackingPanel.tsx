@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import { EmployeeList } from "@/components/tracking/EmployeeList"
 import { getEmployeeRoute, getEmployeeActivePlan } from "@/actions/tracking"
@@ -20,23 +21,41 @@ interface Props {
   mapboxToken: string
 }
 
+const REFRESH_INTERVAL = 15_000
+
 export function TrackingPanel({ employees, schemaName, mapboxToken }: Props) {
+  const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | undefined>()
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([])
   const [activePlan, setActivePlan] = useState<RoutePlanDetail | null>(null)
+  const selectedIdRef = useRef<string | undefined>()
+  selectedIdRef.current = selectedId
+
+  const refreshSelected = useCallback(async (userId: string) => {
+    const [points, plan] = await Promise.all([
+      getEmployeeRoute(schemaName, userId),
+      getEmployeeActivePlan(schemaName, userId),
+    ])
+    setRoutePoints(points)
+    setActivePlan(plan)
+  }, [schemaName])
 
   const handleSelect = useCallback(async (userId: string) => {
     setSelectedId(userId)
     setRoutePoints([])
     setActivePlan(null)
+    await refreshSelected(userId)
+  }, [refreshSelected])
 
-    const [points, plan] = await Promise.all([
-      getEmployeeRoute(schemaName, userId), // siempre todos los puntos del día
-      getEmployeeActivePlan(schemaName, userId),
-    ])
-    setRoutePoints(points)
-    setActivePlan(plan)
-  }, [schemaName, employees])
+  useEffect(() => {
+    const id = setInterval(async () => {
+      router.refresh()
+      if (selectedIdRef.current) {
+        await refreshSelected(selectedIdRef.current)
+      }
+    }, REFRESH_INTERVAL)
+    return () => clearInterval(id)
+  }, [router, refreshSelected])
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">

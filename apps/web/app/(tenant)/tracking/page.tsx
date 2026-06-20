@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getTenantContext } from "@/lib/tenant"
 import { getSessionClaims } from "@/lib/session"
 import { requireFeatureAndPermission } from "@/lib/access"
