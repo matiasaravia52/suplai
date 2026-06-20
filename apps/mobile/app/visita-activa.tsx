@@ -31,7 +31,7 @@ export default function VisitaActivaScreen() {
 
   useEffect(() => {
     if (!activeVisit) {
-      router.replace("/(tabs)")
+      router.back()
       return
     }
 
@@ -63,7 +63,7 @@ export default function VisitaActivaScreen() {
       })
 
       clearActiveVisit()
-      router.replace("/(tabs)")
+      router.back()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al cerrar la visita"
       Alert.alert("Error", message)

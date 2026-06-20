@@ -23,6 +23,9 @@ interface AppStore {
   setPlan: (plan: RoutePlanDetail | null) => void
   setPlanLoading: (loading: boolean) => void
 
+  gpsTracking: boolean
+  setGpsTracking: (v: boolean) => void
+
   activeVisit: ActiveVisit | null
   setActiveVisit: (v: ActiveVisit | null) => void
   clearActiveVisit: () => void
@@ -45,6 +48,9 @@ export const useStore = create<AppStore>()(
       planLoading: false,
       setPlan: (plan) => set({ plan, planLoading: false }),
       setPlanLoading: (planLoading) => set({ planLoading }),
+
+      gpsTracking: false,
+      setGpsTracking: (gpsTracking) => set({ gpsTracking }),
 
       activeVisit: null,
       setActiveVisit: (activeVisit) => set({ activeVisit }),

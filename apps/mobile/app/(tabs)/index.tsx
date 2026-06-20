@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native"
 import { useRouter } from "expo-router"
+import { useFocusEffect } from "@react-navigation/native"
 import { useActivePlan } from "../../hooks/useActivePlan"
 import { useActiveVisit } from "../../hooks/useActiveVisit"
 import { useLocation } from "../../hooks/useLocation"
@@ -23,9 +24,8 @@ export default function HomeScreen() {
   const { plan, loading, refetch } = useActivePlan()
   const { activeVisit, checkActiveVisit } = useActiveVisit()
   const { getCurrentPosition } = useLocation()
-  const { setActiveVisit } = useStore()
+  const { setActiveVisit, gpsTracking, setGpsTracking } = useStore()
 
-  const [gpsOn, setGpsOn] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ClientPoint[]>([])
   const [searching, setSearching] = useState(false)
@@ -33,9 +33,16 @@ export default function HomeScreen() {
   const completedCount = plan?.stops.filter((s) => s.visitado).length ?? 0
   const totalCount = plan?.stops.length ?? 0
 
+  // Refetch el plan cada vez que la pantalla recupera el foco (ej: al volver de visita-activa)
+  useFocusEffect(
+    useCallback(() => {
+      refetch()
+    }, [refetch]),
+  )
+
   useEffect(() => {
     if (activeVisit) {
-      router.replace("/visita-activa")
+      router.push("/visita-activa")
     }
   }, [activeVisit, router])
 
@@ -56,7 +63,7 @@ export default function HomeScreen() {
         checkinAt: data.visit.checkin_at,
       })
 
-      router.replace("/visita-activa")
+      router.push("/visita-activa")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al registrar visita"
       Alert.alert("Error", message)
@@ -87,7 +94,7 @@ export default function HomeScreen() {
     try {
       const ok = await startBackgroundLocation()
       if (ok) {
-        setGpsOn(true)
+        setGpsTracking(true)
       } else {
         Alert.alert(
           "Permiso denegado",
@@ -114,7 +121,7 @@ export default function HomeScreen() {
             text: "Finalizar",
             onPress: async () => {
               await stopBackgroundLocation()
-              setGpsOn(false)
+              setGpsTracking(false)
             },
           },
         ],
@@ -130,7 +137,7 @@ export default function HomeScreen() {
             style: "destructive",
             onPress: async () => {
               await stopBackgroundLocation()
-              setGpsOn(false)
+              setGpsTracking(false)
             },
           },
         ],
@@ -188,7 +195,7 @@ export default function HomeScreen() {
             )}
           />
 
-          {!gpsOn ? (
+          {!gpsTracking ? (
             <TouchableOpacity style={styles.gpsButton} onPress={iniciarRecorrido}>
               <Text style={styles.gpsButtonText}>▶ Iniciar recorrido</Text>
             </TouchableOpacity>
