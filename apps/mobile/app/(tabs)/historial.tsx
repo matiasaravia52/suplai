@@ -2,7 +2,7 @@ import { useState, useCallback } from "react"
 import {
   View,
   Text,
-  FlatList,
+  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   SectionList,
@@ -18,6 +18,7 @@ interface VisitRow extends Visit {
 
 interface Section {
   title: string
+  count: number
   data: VisitRow[]
 }
 
@@ -53,18 +54,16 @@ function groupByDay(visits: VisitRow[]): Section[] {
 
   return Object.entries(groups)
     .sort(([, a], [, b]) => b.dateStr.localeCompare(a.dateStr))
-    .map(([title, { data }]) => ({ title, data }))
+    .map(([title, { data }]) => ({ title, count: data.length, data }))
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
 }
 
 export default function HistorialScreen() {
   const [sections, setSections] = useState<Section[]>([])
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -90,6 +89,15 @@ export default function HistorialScreen() {
     setRefreshing(false)
   }, [fetchVisits])
 
+  const toggleSection = useCallback((title: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(title)) next.delete(title)
+      else next.add(title)
+      return next
+    })
+  }, [])
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -106,17 +114,29 @@ export default function HistorialScreen() {
     )
   }
 
+  const displaySections = sections.map((s) => ({
+    ...s,
+    data: collapsed.has(s.title) ? [] : s.data,
+  }))
+
   return (
     <SectionList
-      sections={sections}
+      sections={displaySections}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.list}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-      renderSectionHeader={({ section: { title } }) => (
-        <Text style={styles.sectionTitle}>{title}</Text>
-      )}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      renderSectionHeader={({ section }) => {
+        const isCollapsed = collapsed.has(section.title)
+        return (
+          <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection(section.title)}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <View style={styles.sectionRight}>
+              <Text style={styles.sectionCount}>{section.count}</Text>
+              <Text style={styles.chevron}>{isCollapsed ? "›" : "⌄"}</Text>
+            </View>
+          </TouchableOpacity>
+        )
+      }}
       renderItem={({ item }) => (
         <View style={styles.visitItem}>
           <Text style={styles.visitIcon}>✓</Text>
@@ -144,15 +164,34 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: 16,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+    backgroundColor: "#f9f9f9",
+  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: "700",
     color: "#666",
     textTransform: "uppercase",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 8,
-    backgroundColor: "#f9f9f9",
+  },
+  sectionRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  sectionCount: {
+    fontSize: 12,
+    color: "#999",
+  },
+  chevron: {
+    fontSize: 18,
+    color: "#999",
+    lineHeight: 20,
   },
   visitItem: {
     flexDirection: "row",
