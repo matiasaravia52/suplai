@@ -74,8 +74,8 @@ export async function getPlansForEmployee(schemaName: string, userId: string, fe
   return listRoutePlans(schemaName, { userId, fecha })
 }
 
-export async function getRouteForDate(schemaName: string, userId: string, fecha: string) {
-  return getRoutePointsForDate(schemaName, userId, fecha)
+export async function getRouteForDate(schemaName: string, userId: string, fecha: string, planId?: string) {
+  return getRoutePointsForDate(schemaName, userId, fecha, planId)
 }
 
 export async function marcarResultadoVisita(

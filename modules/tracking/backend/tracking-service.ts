@@ -454,16 +454,44 @@ export async function getRoutePointsForDate(
   schemaName: string,
   userId: string,
   fecha: string,
+  planId?: string,
 ): Promise<RoutePoint[]> {
-  return withTenantSchema(schemaName, (db) => db<RoutePoint[]>`
-    select id, user_id, visit_id, lat, lng, speed_kmh, heading, accuracy_metros, recorded_at, created_at
-    from tracking__route_points
-    where user_id = ${userId}
-      and recorded_at >= ${fecha}::date
-      and recorded_at <  ${fecha}::date + interval '1 day'
-    order by recorded_at asc
-    limit 2000
-  `)
+  return withTenantSchema(schemaName, async (db) => {
+    if (planId) {
+      // Filtrar por el rango de tiempo de las visitas del plan.
+      // Incluye puntos de tránsito entre visitas (visit_id null) que caigan dentro del rango.
+      return db<RoutePoint[]>`
+        with plan_range as (
+          select
+            min(v.checkin_at)                    as start_time,
+            max(coalesce(v.checkout_at, now()))   as end_time
+          from tracking__route_plan_stops s
+          join tracking__visits v on v.id = s.visit_id
+          where s.plan_id = ${planId}
+        )
+        select rp.id, rp.user_id, rp.visit_id, rp.lat, rp.lng,
+               rp.speed_kmh, rp.heading, rp.accuracy_metros, rp.recorded_at, rp.created_at
+        from tracking__route_points rp
+        cross join plan_range
+        where rp.user_id = ${userId}
+          and plan_range.start_time is not null
+          and rp.recorded_at >= plan_range.start_time
+          and rp.recorded_at <= plan_range.end_time
+        order by rp.recorded_at asc
+        limit 2000
+      `
+    }
+
+    return db<RoutePoint[]>`
+      select id, user_id, visit_id, lat, lng, speed_kmh, heading, accuracy_metros, recorded_at, created_at
+      from tracking__route_points
+      where user_id = ${userId}
+        and recorded_at >= ${fecha}::date
+        and recorded_at <  ${fecha}::date + interval '1 day'
+      order by recorded_at asc
+      limit 2000
+    `
+  })
 }
 
 export async function getActivePlanForEmployee(

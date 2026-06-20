@@ -103,7 +103,7 @@ export function TrackingPanel({ schemaName, mapboxToken, todayAR }: Props): Reac
     try {
       const [detail, points] = await Promise.all([
         getPlanDetail(schemaName, planId),
-        getRouteForDate(schemaName, userId, fecha),
+        getRouteForDate(schemaName, userId, fecha, planId),
       ])
       console.log("[Tracking] plan detail:", detail?.id, "stops:", detail?.stops?.length)
       console.log("[Tracking] route points:", points?.length, "userId:", userId, "fecha:", fecha)
