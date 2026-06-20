@@ -24,14 +24,13 @@ export function useLocation() {
       if (!granted) return null
     }
 
-    // Usar última posición conocida (instantánea) mientras se obtiene una más precisa
-    const last = await Location.getLastKnownPositionAsync({ maxAge: 60_000 })
+    // Usar última posición conocida (instantánea, sin restricción de antigüedad)
+    const last = await Location.getLastKnownPositionAsync()
     if (last) {
-      // Retornar inmediatamente con la última conocida
       return { lat: last.coords.latitude, lng: last.coords.longitude }
     }
 
-    // Sin posición conocida: esperar con timeout de 8s y precisión reducida
+    // Sin posición conocida en cache: esperar máximo 8s con precisión media
     const loc = await Promise.race([
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 8_000)),

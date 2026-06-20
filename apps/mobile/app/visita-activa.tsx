@@ -7,7 +7,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native"
-import { useRouter } from "expo-router"
+import { useRouter, useNavigation } from "expo-router"
 import * as Location from "expo-location"
 import { useStore } from "../lib/store"
 import { useLocation } from "../hooks/useLocation"
@@ -24,6 +24,7 @@ function formatTimer(seconds: number): string {
 export default function VisitaActivaScreen() {
   const router = useRouter()
   const { activeVisit, clearActiveVisit } = useStore()
+  const navigation = useNavigation()
   const { getCurrentPosition } = useLocation()
   const { finalFlush } = useTripTracking(activeVisit?.visitId ?? null)
 
@@ -32,7 +33,7 @@ export default function VisitaActivaScreen() {
 
   useEffect(() => {
     if (!activeVisit) {
-      router.back()
+      navigation.canGoBack() ? router.back() : router.replace("/(tabs)")
       return
     }
 
@@ -81,7 +82,7 @@ export default function VisitaActivaScreen() {
       })
 
       clearActiveVisit()
-      router.back()
+      navigation.canGoBack() ? router.back() : router.replace("/(tabs)")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al cerrar la visita"
       Alert.alert("Error", message)
