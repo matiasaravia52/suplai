@@ -206,6 +206,27 @@ export async function getModuleFeatureConfig(tenantId: string, moduleId: string)
   }
 }
 
+export async function getMigrations(tenantId: string, moduleId: string) {
+  const tenant = await getTenant(tenantId)
+  if (!tenant) throw new Error("Tenant no encontrado")
+  const manifest = ModuleRegistry.get(moduleId)
+  if (!manifest) throw new Error("Módulo no encontrado")
+  const { getMigrationStatus } = await import("@suplai/tracking/service")
+  return getMigrationStatus(tenant.schema_name, manifest.migrations ?? [])
+}
+
+export async function runMigration(tenantId: string, moduleId: string, migrationName: string) {
+  const tenant = await getTenant(tenantId)
+  if (!tenant) throw new Error("Tenant no encontrado")
+  if (moduleId === "tracking") {
+    const { runSingleMigration } = await import("@suplai/tracking/migrations")
+    await runSingleMigration(tenant.schema_name, migrationName)
+  } else {
+    throw new Error(`Módulo '${moduleId}' no soporta migraciones individuales`)
+  }
+  revalidatePath(`/tenants/${tenantId}/modules/${moduleId}/migrations`)
+}
+
 export async function updateModuleFeature(
   tenantId: string,
   moduleId: string,

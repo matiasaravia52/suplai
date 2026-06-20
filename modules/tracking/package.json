@@ -4,7 +4,8 @@
   "private": true,
   "exports": {
     ".": "./manifest.ts",
-    "./service": "./backend/tracking-service.ts"
+    "./service": "./backend/tracking-service.ts",
+    "./migrations": "./migrations/run.ts"
   },
   "scripts": {
     "lint": "tsc --noEmit"

@@ -650,6 +650,33 @@ export async function createUnknownPoint(
   })
 }
 
+export async function getMigrationStatus(
+  schemaName: string,
+  migrationNames: string[],
+): Promise<{ name: string; applied: boolean; applied_at: string | null }[]> {
+  return withTenantSchema(schemaName, async (db) => {
+    const tableExists = await db`
+      select 1 from information_schema.tables
+      where table_schema = ${schemaName}
+        and table_name = '_schema_migrations'
+      limit 1
+    `
+    if (tableExists.length === 0) {
+      return migrationNames.map((name) => ({ name, applied: false, applied_at: null }))
+    }
+    const applied = await db<{ name: string; applied_at: string }[]>`
+      select name, applied_at::text from _schema_migrations
+      where name = any(${migrationNames})
+    `
+    const appliedMap = new Map(applied.map((r) => [r.name, r.applied_at]))
+    return migrationNames.map((name) => ({
+      name,
+      applied: appliedMap.has(name),
+      applied_at: appliedMap.get(name) ?? null,
+    }))
+  })
+}
+
 export async function exportVisitsExcel(
   schemaName: string,
   filters: VisitFilters = {},

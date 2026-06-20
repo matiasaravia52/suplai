@@ -78,6 +78,12 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
                       </button>
                     </form>
                     <Link
+                      href={`/tenants/${id}/modules/${m.module_id}/migrations`}
+                      className="text-xs px-2 py-1 border border-gray-300 rounded text-gray-600 hover:bg-gray-50"
+                    >
+                      Migraciones
+                    </Link>
+                    <Link
                       href={`/tenants/${id}/modules/${m.module_id}`}
                       className="text-xs text-blue-600 hover:underline"
                     >
