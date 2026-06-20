@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { logout } from "@/actions/auth"
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
