@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import {
   View,
   Text,
@@ -64,8 +64,17 @@ function formatTime(iso: string): string {
 export default function HistorialScreen() {
   const [sections, setSections] = useState<Section[]>([])
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const initializedRef = useRef(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Al cargar, colapsar automáticamente todo excepto "Hoy"
+  useEffect(() => {
+    if (sections.length === 0 || initializedRef.current) return
+    initializedRef.current = true
+    const pastTitles = sections.filter((s) => s.title !== "Hoy").map((s) => s.title)
+    if (pastTitles.length > 0) setCollapsed(new Set(pastTitles))
+  }, [sections])
 
   const fetchVisits = useCallback(async () => {
     try {

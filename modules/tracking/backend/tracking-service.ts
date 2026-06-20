@@ -467,7 +467,7 @@ export async function getMyPlansForDate(
     const plans = await db<{ id: string }[]>`
       select id from tracking__route_plans
       where user_id = ${userId} and fecha = ${targetDate}
-      order by created_at asc
+      order by created_at desc
     `
     const details = await Promise.all(plans.map((p) => getRoutePlanDetail(schemaName, p.id)))
     return details.filter((d): d is RoutePlanDetail => d !== null)

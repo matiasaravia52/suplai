@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useState, useEffect, useRef } from "react"
 import {
   View,
   Text,
@@ -29,7 +29,18 @@ export default function HomeScreen() {
   const { setActiveVisit, gpsTracking, setGpsTracking } = useStore()
 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const initializedRef = useRef(false)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Al cargar, colapsar automáticamente los planes donde todas las paradas están visitadas
+  useEffect(() => {
+    if (plans.length === 0 || initializedRef.current) return
+    initializedRef.current = true
+    const completedIds = plans
+      .filter((p) => p.stops.length > 0 && p.stops.every((s) => s.visitado))
+      .map((p) => p.id)
+    if (completedIds.length > 0) setCollapsed(new Set(completedIds))
+  }, [plans])
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ClientPoint[]>([])
   const [searching, setSearching] = useState(false)
