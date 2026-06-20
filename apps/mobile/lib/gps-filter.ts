@@ -7,7 +7,7 @@ export interface GpsPoint {
   recorded_at: string
 }
 
-const MAX_ACCURACY_METROS = 50
+const MAX_ACCURACY_METROS = 200
 const MAX_VELOCIDAD_KMH = 150
 const MIN_DISTANCIA_METROS = 10
 

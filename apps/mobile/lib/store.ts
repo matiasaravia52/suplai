@@ -57,7 +57,7 @@ export const useStore = create<AppStore>()(
       clearActiveVisit: () => set({ activeVisit: null }),
     }),
     {
-      name: "suplai-store",
+      name: "suplai-store-v2",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         session: state.session,
