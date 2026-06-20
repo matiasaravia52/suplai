@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { useRouter } from "expo-router"
+import * as Location from "expo-location"
 import { useStore } from "../lib/store"
 import { useLocation } from "../hooks/useLocation"
 import { useTripTracking } from "../hooks/useTripTracking"
@@ -48,18 +49,35 @@ export default function VisitaActivaScreen() {
     setCheckingOut(true)
 
     try {
-      const pos = await getCurrentPosition()
-      if (!pos) {
-        setCheckingOut(false)
-        return
+      // Intentar obtener posición — primero la última conocida (instantáneo),
+      // luego posición actual con timeout. Si falla, hacer checkout igual sin coords.
+      let lat: number | null = null
+      let lng: number | null = null
+
+      try {
+        const last = await Location.getLastKnownPositionAsync()
+        if (last) {
+          lat = last.coords.latitude
+          lng = last.coords.longitude
+        }
+        const current = await Promise.race([
+          getCurrentPosition(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        ])
+        if (current) {
+          lat = current.lat
+          lng = current.lng
+        }
+      } catch {
+        // Continuar con lo que tengamos
       }
 
       await finalFlush()
 
       await api.post("/api/tracking/checkout", {
         visitId: activeVisit.visitId,
-        lat: pos.lat,
-        lng: pos.lng,
+        lat: lat ?? 0,
+        lng: lng ?? 0,
       })
 
       clearActiveVisit()
