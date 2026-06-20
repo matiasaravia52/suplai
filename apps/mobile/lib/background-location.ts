@@ -2,6 +2,7 @@ import * as TaskManager from "expo-task-manager"
 import * as Location from "expo-location"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { api } from "./api"
+import { useStore } from "./store"
 import type { GpsPoint } from "./gps-filter"
 import { esPuntoValido } from "./gps-filter"
 
@@ -59,6 +60,7 @@ export async function clearBuffer(): Promise<void> {
 }
 
 async function flushBuffer(visitId?: string): Promise<void> {
+  if (!useStore.getState().gpsTracking) return
   const raw = await AsyncStorage.getItem(BUFFER_KEY)
   if (!raw) return
   const buffer: GpsPoint[] = JSON.parse(raw)
@@ -99,6 +101,7 @@ export async function startBackgroundLocation(visitId?: string): Promise<boolean
       timeInterval: 10_000,  // cada 10 segundos
     },
     async (location) => {
+      if (!useStore.getState().gpsTracking) return
       const point: GpsPoint = {
         lat: location.coords.latitude,
         lng: location.coords.longitude,
