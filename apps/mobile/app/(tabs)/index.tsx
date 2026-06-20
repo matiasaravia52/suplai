@@ -12,7 +12,7 @@ import {
 } from "react-native"
 import { useRouter } from "expo-router"
 import { useFocusEffect } from "@react-navigation/native"
-import { useZona } from "../../hooks/useZona"
+import { useZona, todayAR, addDays } from "../../hooks/useZona"
 import { useActiveVisit } from "../../hooks/useActiveVisit"
 import { useLocation } from "../../hooks/useLocation"
 import { useStore } from "../../lib/store"
@@ -20,9 +20,19 @@ import { api } from "../../lib/api"
 import { startBackgroundLocation, stopBackgroundLocation } from "../../lib/background-location"
 import type { ZonaStopDetail, ClientPoint, VisitWithPoint, ResultadoVisita } from "@suplai/types"
 
+function formatFecha(fecha: string, hoy: string): string {
+  if (fecha === hoy) return "Hoy"
+  if (fecha === addDays(hoy, 1)) return "Mañana"
+  if (fecha === addDays(hoy, -1)) return "Ayer"
+  const [y, m, d] = fecha.split("-")
+  return `${d}/${m}/${y}`
+}
+
 export default function HomeScreen() {
   const router = useRouter()
-  const { zona, loading, refetch } = useZona()
+  const hoy = todayAR()
+  const [fecha, setFecha] = useState(hoy)
+  const { zona, loading, refetch } = useZona(fecha)
   const { activeVisit, checkActiveVisit } = useActiveVisit()
   const { getCurrentPosition } = useLocation()
   const { setActiveVisit, gpsTracking, setGpsTracking } = useStore()
@@ -234,7 +244,18 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{completedStops}/{totalStops} paradas visitadas hoy</Text>
+        <View style={styles.dateNav}>
+          <TouchableOpacity onPress={() => setFecha(addDays(fecha, -1))} style={styles.dateArrow}>
+            <Text style={styles.dateArrowText}>‹</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFecha(hoy)} activeOpacity={fecha === hoy ? 1 : 0.6}>
+            <Text style={styles.dateLabel}>{formatFecha(fecha, hoy)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFecha(addDays(fecha, 1))} style={styles.dateArrow}>
+            <Text style={styles.dateArrowText}>›</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.headerTitle}>{completedStops}/{totalStops} paradas visitadas</Text>
       </View>
 
       <FlatList
@@ -263,7 +284,7 @@ export default function HomeScreen() {
         )}
       />
 
-      {!gpsTracking ? (
+      {fecha === hoy && (!gpsTracking ? (
         <TouchableOpacity style={styles.gpsButton} onPress={iniciarRecorrido}>
           <Text style={styles.gpsButtonText}>▶ Iniciar recorrido</Text>
         </TouchableOpacity>
@@ -271,7 +292,7 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.gpsButtonActive} onPress={finalizarRecorrido}>
           <Text style={styles.gpsButtonTextActive}>■ Finalizar recorrido</Text>
         </TouchableOpacity>
-      )}
+      ))}
     </View>
   )
 }
@@ -280,8 +301,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
   loadingText: { marginTop: 12, color: "#666", fontSize: 14 },
-  header: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
-  headerTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
+  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  dateNav: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  dateArrow: { paddingHorizontal: 16, paddingVertical: 4 },
+  dateArrowText: { fontSize: 24, color: "#2563eb", lineHeight: 28 },
+  dateLabel: { fontSize: 15, fontWeight: "600", color: "#2563eb", minWidth: 80, textAlign: "center" },
+  headerTitle: { fontSize: 13, color: "#666", textAlign: "center" },
   list: { paddingBottom: 8 },
   stopItem: {
     flexDirection: "row",
