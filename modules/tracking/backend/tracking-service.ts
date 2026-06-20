@@ -32,6 +32,16 @@ function haversineMetros(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+export class GeofenceError extends Error {
+  constructor(
+    public readonly distanciaMetros: number,
+    public readonly radioMetros: number,
+  ) {
+    super(`Fuera de rango: ${distanciaMetros}m (radio: ${radioMetros}m)`)
+    this.name = "GeofenceError"
+  }
+}
+
 export async function getActiveVisit(
   schemaName: string,
   userId: string,
@@ -50,6 +60,7 @@ export async function getActiveVisit(
 export async function checkin(
   schemaName: string,
   input: CheckinInput,
+  radioMetros: number = 100,
 ): Promise<{ visit: Visit; fraudAlert?: FraudAlert }> {
   return withTenantSchema(schemaName, async (db) => {
     // Verificar que no tiene visita activa
@@ -78,12 +89,27 @@ export async function checkin(
       await updateClientPointCoords(schemaName, input.clientPointId, input.lat, input.lng)
     }
 
+    // Validar geocerca — solo si el punto tenía coordenadas previas
+    let esValida: boolean | null = null
+    let distanciaMetrosCheckin: number | null = null
+
+    if (point.lat != null && point.lng != null) {
+      const distancia = haversineMetros(input.lat, input.lng, point.lat, point.lng)
+      distanciaMetrosCheckin = Math.round(distancia)
+      if (distancia > radioMetros) {
+        throw new GeofenceError(distanciaMetrosCheckin, radioMetros)
+      }
+      esValida = true
+    }
+
     // Crear la visita
     const visitRows = await db<Visit[]>`
       insert into tracking__visits
-        (client_point_id, user_id, checkin_lat, checkin_lng)
+        (client_point_id, user_id, checkin_lat, checkin_lng,
+         es_valida, distancia_metros_checkin, radio_metros_aplicado)
       values
-        (${input.clientPointId}, ${input.userId}, ${input.lat}, ${input.lng})
+        (${input.clientPointId}, ${input.userId}, ${input.lat}, ${input.lng},
+         ${esValida}, ${distanciaMetrosCheckin}, ${radioMetros})
       returning *
     `
     const visit = visitRows[0]
@@ -99,22 +125,6 @@ export async function checkin(
         last_seen_at = excluded.last_seen_at,
         visit_id     = excluded.visit_id
     `
-
-    // Fraud check — solo si el punto tenía coordenadas previas
-    if (point.lat != null && point.lng != null) {
-      const distancia = Math.round(haversineMetros(input.lat, input.lng, point.lat, point.lng))
-      if (distancia > 150) {
-        const alertRows = await db<FraudAlert[]>`
-          insert into tracking__fraud_alerts
-            (visit_id, user_id, client_point_id, distancia_metros)
-          values
-            (${visit.id}, ${input.userId}, ${input.clientPointId}, ${distancia})
-          returning *
-        `
-        const fraudAlert = alertRows[0]
-        if (fraudAlert) return { visit, fraudAlert }
-      }
-    }
 
     return { visit }
   })

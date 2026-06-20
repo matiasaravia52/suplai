@@ -13,6 +13,7 @@ import { useStore } from "../lib/store"
 import { useLocation } from "../hooks/useLocation"
 import { useTripTracking } from "../hooks/useTripTracking"
 import { api } from "../lib/api"
+import { clearActiveVisitSnapshot } from "../lib/background-location"
 import type { ResultadoVisita } from "@suplai/types"
 
 function formatTimer(seconds: number): string {
@@ -75,6 +76,7 @@ export default function VisitaActivaScreen() {
         resultado: res,
       })
 
+      await clearActiveVisitSnapshot()
       clearActiveVisit()
       router.replace("/(tabs)")
     } catch (err) {

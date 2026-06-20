@@ -11,6 +11,9 @@ export interface Visit {
   checkout_lat?: number
   checkout_lng?: number
   resultado?: ResultadoVisita
+  es_valida?: boolean | null
+  distancia_metros_checkin?: number | null
+  radio_metros_aplicado?: number | null
   created_at: string
 }
 

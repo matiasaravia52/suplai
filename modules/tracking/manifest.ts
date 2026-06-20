@@ -51,6 +51,7 @@ export const manifest: ModuleManifest = {
     "005_add_resultado_to_visits.sql",
     "006_rename_plans_to_zonas.sql",
     "008_accuracy_double_precision.sql",
+    "009_add_geocerca_to_visits.sql",
   ],
   runMigrations,
 }

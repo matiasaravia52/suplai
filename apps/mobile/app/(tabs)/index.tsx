@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
 } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useRouter } from "expo-router"
 import { useFocusEffect } from "@react-navigation/native"
 import { useZona, todayAR, addDays } from "../../hooks/useZona"
@@ -17,7 +18,7 @@ import { useActiveVisit } from "../../hooks/useActiveVisit"
 import { useLocation } from "../../hooks/useLocation"
 import { useStore } from "../../lib/store"
 import { api } from "../../lib/api"
-import { startBackgroundLocation, stopBackgroundLocation } from "../../lib/background-location"
+import { startBackgroundLocation, stopBackgroundLocation, setActiveVisitSnapshot, ACTIVE_VISIT_KEY } from "../../lib/background-location"
 import type { ZonaStopDetail, ClientPoint, VisitWithPoint, ResultadoVisita } from "@suplai/types"
 
 function formatFecha(fecha: string, hoy: string): string {
@@ -41,6 +42,21 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ClientPoint[]>([])
   const [searching, setSearching] = useState(false)
+
+  // Cerrar visita stale al montar (si la app fue terminada con una visita activa)
+  useEffect(() => {
+    const closeStaledVisit = async () => {
+      const raw = await AsyncStorage.getItem(ACTIVE_VISIT_KEY)
+      if (!raw) return
+      try {
+        const snapshot = JSON.parse(raw) as { visitId: string }
+        await AsyncStorage.removeItem(ACTIVE_VISIT_KEY)
+        await api.post("/api/tracking/checkout", { visitId: snapshot.visitId }).catch(() => null)
+        useStore.getState().clearActiveVisit()
+      } catch { /* silencioso */ }
+    }
+    closeStaledVisit()
+  }, [])
 
   useFocusEffect(
     useCallback(() => {
@@ -96,7 +112,7 @@ export default function HomeScreen() {
 
     const doCheckin = async () => {
       try {
-        const data = await api.post<{ visit: { id: string; checkin_at: string } }>(
+        const data = await api.post<{ visit: { id: string; checkin_at: string; radio_metros_aplicado?: number | null } }>(
           "/api/tracking/checkin",
           { clientPointId, lat: pos.lat, lng: pos.lng },
         )
@@ -106,12 +122,26 @@ export default function HomeScreen() {
           clientPointNombre,
           checkinAt: data.visit.checkin_at,
         })
+        await setActiveVisitSnapshot({
+          visitId: data.visit.id,
+          clientPointLat: pos.lat,
+          clientPointLng: pos.lng,
+          radioMetros: data.visit.radio_metros_aplicado ?? 100,
+        })
         if (!gpsTracking) {
           const ok = await startBackgroundLocation()
           if (ok) setGpsTracking(true)
         }
         router.push("/visita-activa")
       } catch (err) {
+        if (err instanceof Error && err.message === "fuera_de_rango") {
+          const e = err as Error & { distanciaMetros: number; radioMetros: number }
+          Alert.alert(
+            "Muy lejos del punto",
+            `Estás a ${e.distanciaMetros}m. Acercate a menos de ${e.radioMetros}m para registrar la visita.`,
+          )
+          return
+        }
         const message = err instanceof Error ? err.message : "Error al registrar visita"
         Alert.alert("Error", message)
       }

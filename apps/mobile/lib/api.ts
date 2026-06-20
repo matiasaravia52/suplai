@@ -62,6 +62,12 @@ async function apiFetch<T>(
     if (res.status === 401) {
       await logout()
     }
+    if (res.status === 422 && body.error === "fuera_de_rango") {
+      const e = new Error("fuera_de_rango") as Error & { distanciaMetros: number; radioMetros: number }
+      e.distanciaMetros = body.distanciaMetros
+      e.radioMetros = body.radioMetros
+      throw e
+    }
     throw new Error(body.error ?? `Error HTTP ${res.status}`)
   }
 

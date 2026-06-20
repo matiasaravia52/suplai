@@ -12,6 +12,31 @@ const BUFFER_KEY = "gps_buffer"
 const LAST_POINT_KEY = "gps_last_point"
 const FLUSH_INTERVAL_MS = 30_000
 
+export const ACTIVE_VISIT_KEY = "active_visit_snapshot"
+
+interface ActiveVisitSnapshot {
+  visitId: string
+  clientPointLat: number
+  clientPointLng: number
+  radioMetros: number
+}
+
+export async function setActiveVisitSnapshot(snapshot: ActiveVisitSnapshot): Promise<void> {
+  await AsyncStorage.setItem(ACTIVE_VISIT_KEY, JSON.stringify(snapshot))
+}
+
+export async function clearActiveVisitSnapshot(): Promise<void> {
+  await AsyncStorage.removeItem(ACTIVE_VISIT_KEY)
+}
+
+function haversineMetros(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 // Background task (solo disponible en dev/prod builds, no Expo Go)
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) return
@@ -42,6 +67,29 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
 
     if (buffer.length > 500) buffer.splice(0, buffer.length - 500)
     await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(buffer))
+
+    // Auto-checkout si el vendedor se alejó del punto de venta
+    const lastLoc = locations[locations.length - 1]
+    if (lastLoc) {
+      const visitSnapshotRaw = await AsyncStorage.getItem(ACTIVE_VISIT_KEY)
+      if (visitSnapshotRaw) {
+        const snapshot: ActiveVisitSnapshot = JSON.parse(visitSnapshotRaw)
+        const distancia = haversineMetros(
+          lastLoc.coords.latitude, lastLoc.coords.longitude,
+          snapshot.clientPointLat, snapshot.clientPointLng,
+        )
+        if (distancia > snapshot.radioMetros) {
+          await AsyncStorage.removeItem(ACTIVE_VISIT_KEY)
+          try {
+            await api.post("/api/tracking/checkout", { visitId: snapshot.visitId })
+            useStore.getState().clearActiveVisit()
+          } catch {
+            // Si falla el checkout, restaurar el snapshot para reintentar
+            await AsyncStorage.setItem(ACTIVE_VISIT_KEY, visitSnapshotRaw)
+          }
+        }
+      }
+    }
   } catch {
     // Silently fail
   }
@@ -126,6 +174,23 @@ export async function startBackgroundLocation(visitId?: string): Promise<boolean
       buffer.push(point)
       if (buffer.length > 500) buffer.splice(0, buffer.length - 500)
       await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(buffer))
+
+      // Auto-checkout si el vendedor se alejó del punto de venta
+      const visitSnapshotRaw = await AsyncStorage.getItem(ACTIVE_VISIT_KEY)
+      if (visitSnapshotRaw) {
+        const snapshot: ActiveVisitSnapshot = JSON.parse(visitSnapshotRaw)
+        const distancia = haversineMetros(point.lat, point.lng, snapshot.clientPointLat, snapshot.clientPointLng)
+        if (distancia > snapshot.radioMetros) {
+          await AsyncStorage.removeItem(ACTIVE_VISIT_KEY)
+          try {
+            await api.post("/api/tracking/checkout", { visitId: snapshot.visitId })
+            useStore.getState().clearActiveVisit()
+          } catch {
+            // Si falla el checkout, restaurar el snapshot para reintentar
+            await AsyncStorage.setItem(ACTIVE_VISIT_KEY, visitSnapshotRaw)
+          }
+        }
+      }
 
       // Flush inmediato con el primer punto para actualizar el mapa enseguida
       if (buffer.length === 1) {

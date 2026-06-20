@@ -150,5 +150,13 @@ export async function runMigrations(schemaName: string): Promise<void> {
       alter table tracking__route_points
         alter column accuracy_metros type double precision
     `)
+
+    // 009: campos de geocerca en visits
+    await db.unsafe(`
+      alter table tracking__visits
+        add column if not exists es_valida boolean,
+        add column if not exists distancia_metros_checkin integer,
+        add column if not exists radio_metros_aplicado integer
+    `)
   })
 }
