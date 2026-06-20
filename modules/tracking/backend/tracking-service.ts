@@ -405,6 +405,67 @@ export async function getRoutePlanDetail(
   })
 }
 
+export async function getEmployeesWithActivityOnDate(
+  schemaName: string,
+  fecha: string,
+): Promise<FieldEmployee[]> {
+  return withTenantSchema(schemaName, async (db) => {
+    const rows = await db`
+      select
+        u.id,
+        u.nombre,
+        u.email,
+        array_agg(distinct r.nombre) as roles,
+        es.current_lat,
+        es.current_lng,
+        es.last_seen_at,
+        es.visit_id
+      from tracking__route_plans p
+      join users u on u.id = p.user_id
+      join user_roles ur on ur.user_id = u.id
+      join roles r on r.id = ur.role_id
+      left join tracking__employee_status es on es.user_id = u.id
+      where p.fecha = ${fecha}
+      group by u.id, u.nombre, u.email, es.current_lat, es.current_lng, es.last_seen_at, es.visit_id
+      order by u.nombre
+    `
+    return rows.map((row): FieldEmployee => {
+      const status: EmployeeStatus | undefined = row.current_lat != null
+        ? {
+            user_id: row.id as string,
+            current_lat: row.current_lat as number,
+            current_lng: row.current_lng as number,
+            ...(row.last_seen_at != null ? { last_seen_at: row.last_seen_at as string } : {}),
+            ...(row.visit_id != null     ? { visit_id:     row.visit_id     as string } : {}),
+          }
+        : undefined
+      return {
+        id:     row.id as string,
+        nombre: row.nombre as string,
+        email:  row.email as string,
+        roles:  row.roles as string[],
+        ...(status !== undefined ? { status } : {}),
+      }
+    })
+  })
+}
+
+export async function getRoutePointsForDate(
+  schemaName: string,
+  userId: string,
+  fecha: string,
+): Promise<RoutePoint[]> {
+  return withTenantSchema(schemaName, (db) => db<RoutePoint[]>`
+    select id, user_id, visit_id, lat, lng, speed_kmh, heading, accuracy_metros, recorded_at, created_at
+    from tracking__route_points
+    where user_id = ${userId}
+      and recorded_at >= ${fecha}::date
+      and recorded_at <  ${fecha}::date + interval '1 day'
+    order by recorded_at asc
+    limit 2000
+  `)
+}
+
 export async function getActivePlanForEmployee(
   schemaName: string,
   userId: string,
