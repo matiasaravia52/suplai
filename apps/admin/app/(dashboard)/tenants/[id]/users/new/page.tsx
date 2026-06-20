@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import { getTenant } from "@/actions/tenants"
 import NewUserForm from "./form"
 
-export default async function NewUserPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function NewUserPage({ params }: { params: Promise<{ id: string }> }): Promise<React.ReactElement> {
   const { id } = await params
   const tenant = await getTenant(id)
   if (!tenant) notFound()

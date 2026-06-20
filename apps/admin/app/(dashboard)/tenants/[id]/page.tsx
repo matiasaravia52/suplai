@@ -4,7 +4,7 @@ import { getTenant, getTenantModules, toggleModule, toggleTenant } from "@/actio
 import { getTenantUsers } from "@/actions/users"
 import { DeleteTenantButton } from "./DeleteTenantButton"
 
-export default async function TenantPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TenantPage({ params }: { params: Promise<{ id: string }> }): Promise<React.ReactElement> {
   const { id } = await params
   const [tenant, modules, users] = await Promise.all([
     getTenant(id),

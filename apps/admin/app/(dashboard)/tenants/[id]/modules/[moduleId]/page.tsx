@@ -6,7 +6,7 @@ export default async function ModuleFeaturesPage({
   params,
 }: {
   params: Promise<{ id: string; moduleId: string }>
-}) {
+}): Promise<React.ReactElement> {
   const { id, moduleId } = await params
   const [tenant, config] = await Promise.all([
     getTenant(id),
