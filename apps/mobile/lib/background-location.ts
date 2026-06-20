@@ -14,6 +14,7 @@ interface GpsPoint {
   recorded_at: string
 }
 
+// Background task (solo disponible en dev/prod builds, no Expo Go)
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) return
   const { locations } = data as { locations: Location.LocationObject[] }
@@ -26,13 +27,15 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     recorded_at: new Date(loc.timestamp).toISOString(),
   }))
 
-  const existing = await AsyncStorage.getItem(BUFFER_KEY)
-  const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
-  buffer.push(...points)
-
-  const MAX = 500
-  const trimmed = buffer.length > MAX ? buffer.slice(-MAX) : buffer
-  await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(trimmed))
+  try {
+    const existing = await AsyncStorage.getItem(BUFFER_KEY)
+    const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
+    buffer.push(...points)
+    if (buffer.length > 500) buffer.splice(0, buffer.length - 500)
+    await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(buffer))
+  } catch {
+    // Silently fail
+  }
 })
 
 export async function getBufferedPoints(): Promise<GpsPoint[]> {
@@ -44,42 +47,72 @@ export async function clearBuffer(): Promise<void> {
   await AsyncStorage.removeItem(BUFFER_KEY)
 }
 
-export async function startBackgroundLocation() {
-  // Expo Go no soporta background permissions ni foreground service.
-  // Intentamos background; si falla, usamos foreground como fallback para testing.
-  let useBackground = false
-  try {
-    const { status } = await Location.requestBackgroundPermissionsAsync()
-    useBackground = status === "granted"
-  } catch {
-    // Expo Go rechaza esta llamada — continuamos con foreground
-  }
+// Suscripción activa de foreground (watchPositionAsync)
+let _watchSubscription: Location.LocationSubscription | null = null
 
-  if (!useBackground) {
-    const { status } = await Location.requestForegroundPermissionsAsync()
-    if (status !== "granted") return false
-  }
+export async function startBackgroundLocation(): Promise<boolean> {
+  // Pedir permiso de foreground (funciona en Expo Go)
+  const { status: fgStatus } = await Location.requestForegroundPermissionsAsync()
+  if (fgStatus !== "granted") return false
 
-  const options: Location.LocationTaskOptions = {
-    accuracy: Location.Accuracy.High,
-    distanceInterval: 50,
-    timeInterval: 10000,
-  }
+  // Intentar permiso de background sin lanzar error si no está disponible (Expo Go)
+  const bgPermission = await Location.getBackgroundPermissionsAsync().catch(() => null)
+  const bgGranted = bgPermission?.status === "granted"
 
-  // foregroundService solo disponible en dev/prod builds de Android
-  if (useBackground) {
-    options.foregroundService = {
-      notificationTitle: "Suplai",
-      notificationBody: "Registrando tu recorrido...",
+  // Tracking de foreground con watchPositionAsync (funciona siempre, incluso en Expo Go)
+  _watchSubscription = await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      distanceInterval: 50,
+      timeInterval: 15_000,
+    },
+    async (location) => {
+      const point: GpsPoint = {
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+        speed_kmh: location.coords.speed != null ? Math.round(location.coords.speed * 3.6) : undefined,
+        heading: location.coords.heading ?? undefined,
+        recorded_at: new Date(location.timestamp).toISOString(),
+      }
+      const existing = await AsyncStorage.getItem(BUFFER_KEY)
+      const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
+      buffer.push(point)
+      if (buffer.length > 500) buffer.splice(0, buffer.length - 500)
+      await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(buffer))
+    },
+  )
+
+  // También iniciar background task si tenemos permiso (dev/prod builds)
+  if (bgGranted) {
+    try {
+      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+        accuracy: Location.Accuracy.High,
+        distanceInterval: 50,
+        timeInterval: 15_000,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: "Suplai",
+          notificationBody: "Registrando tu recorrido...",
+        },
+      })
+    } catch {
+      // Expo Go rechaza esto — el watchPositionAsync ya cubre el foreground
     }
   }
 
-  await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, options)
   return true
 }
 
-export async function stopBackgroundLocation() {
-  if (TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK)) {
-    await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)
+export async function stopBackgroundLocation(): Promise<void> {
+  _watchSubscription?.remove()
+  _watchSubscription = null
+
+  try {
+    const registered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK)
+    if (registered) {
+      await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)
+    }
+  } catch {
+    // Silently fail
   }
 }
