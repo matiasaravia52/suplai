@@ -57,10 +57,12 @@ async function flushBuffer(visitId?: string): Promise<void> {
   if (buffer.length === 0) return
 
   try {
-    await api.post("/api/tracking/flush", { points: buffer, visitId })
+    console.log("[GPS] flush →", buffer.length, "puntos, visitId:", visitId)
+    const res = await api.post<{ ok: boolean; count: number }>("/api/tracking/flush", { points: buffer, visitId })
+    console.log("[GPS] flush OK:", res)
     await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify([]))
-  } catch {
-    // Reintentar en el próximo tick
+  } catch (err) {
+    console.error("[GPS] flush ERROR:", err instanceof Error ? err.message : err)
   }
 }
 
