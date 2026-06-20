@@ -19,7 +19,7 @@ import { useLocation } from "../../hooks/useLocation"
 import { useStore } from "../../lib/store"
 import { api } from "../../lib/api"
 import { startBackgroundLocation, stopBackgroundLocation } from "../../lib/background-location"
-import type { RoutePlanStopDetail, ClientPoint, RoutePlanDetail } from "@suplai/types"
+import type { RoutePlanStopDetail, ClientPoint, RoutePlanDetail, VisitWithPoint, ResultadoVisita } from "@suplai/types"
 
 export default function HomeScreen() {
   const router = useRouter()
@@ -68,33 +68,82 @@ export default function HomeScreen() {
     })
   }, [])
 
+  const pedirResultadoPendiente = useCallback(
+    (visitas: VisitWithPoint[], index: number, onDone: () => void) => {
+      if (index >= visitas.length) { onDone(); return }
+      const visita = visitas[index]
+      if (!visita) { onDone(); return }
+      Alert.alert(
+        `¿Qué pasó en ${visita.client_point_nombre}?`,
+        undefined,
+        [
+          {
+            text: "Venta",
+            onPress: () => {
+              api.patch(`/api/tracking/visits/${visita.id}/resultado`, { resultado: "venta" as ResultadoVisita }).catch(() => null)
+              pedirResultadoPendiente(visitas, index + 1, onDone)
+            },
+          },
+          {
+            text: "No venta",
+            onPress: () => {
+              api.patch(`/api/tracking/visits/${visita.id}/resultado`, { resultado: "no_venta" as ResultadoVisita }).catch(() => null)
+              pedirResultadoPendiente(visitas, index + 1, onDone)
+            },
+          },
+          {
+            text: "Omitir",
+            style: "cancel",
+            onPress: () => pedirResultadoPendiente(visitas, index + 1, onDone),
+          },
+        ],
+      )
+    },
+    [],
+  )
+
   const handleCheckin = useCallback(async (clientPointId: string, clientPointNombre: string) => {
     const pos = await getCurrentPosition()
     if (!pos) return
 
-    try {
-      const data = await api.post<{ visit: { id: string; checkin_at: string } }>(
-        "/api/tracking/checkin",
-        { clientPointId, lat: pos.lat, lng: pos.lng },
-      )
-      setActiveVisit({
-        visitId: data.visit.id,
-        clientPointId,
-        clientPointNombre,
-        checkinAt: data.visit.checkin_at,
-      })
+    const doCheckin = async () => {
+      try {
+        const data = await api.post<{ visit: { id: string; checkin_at: string } }>(
+          "/api/tracking/checkin",
+          { clientPointId, lat: pos.lat, lng: pos.lng },
+        )
+        setActiveVisit({
+          visitId: data.visit.id,
+          clientPointId,
+          clientPointNombre,
+          checkinAt: data.visit.checkin_at,
+        })
 
-      if (!gpsTracking) {
-        const ok = await startBackgroundLocation()
-        if (ok) setGpsTracking(true)
+        if (!gpsTracking) {
+          const ok = await startBackgroundLocation()
+          if (ok) setGpsTracking(true)
+        }
+
+        router.push("/visita-activa")
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Error al registrar visita"
+        Alert.alert("Error", message)
       }
-
-      router.push("/visita-activa")
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al registrar visita"
-      Alert.alert("Error", message)
     }
-  }, [getCurrentPosition, setActiveVisit, router, gpsTracking, setGpsTracking])
+
+    // Verificar visitas pendientes de resultado antes de hacer el checkin
+    try {
+      const { visits } = await api.get<{ visits: VisitWithPoint[] }>("/api/tracking/my-visits?pendiente_resultado=true")
+      if (visits && visits.length > 0) {
+        pedirResultadoPendiente(visits, 0, doCheckin)
+        return
+      }
+    } catch {
+      // Si falla la consulta, continuar igual
+    }
+
+    await doCheckin()
+  }, [getCurrentPosition, setActiveVisit, router, gpsTracking, setGpsTracking, pedirResultadoPendiente])
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query)

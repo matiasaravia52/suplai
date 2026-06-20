@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server"
 import { verifyBearerToken } from "@/lib/api-auth"
-import { getMyVisits } from "@suplai/tracking/service"
+import { getMyVisits, getVisitasPendientesResultado } from "@suplai/tracking/service"
 
 export async function GET(request: Request) {
   const claims = await verifyBearerToken(request)
   if (!claims) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
+  const { searchParams } = new URL(request.url)
+  const pendienteResultado = searchParams.get("pendiente_resultado") === "true"
+
   try {
+    if (pendienteResultado) {
+      const visits = await getVisitasPendientesResultado(claims.schema_name, claims.app_user_id)
+      return NextResponse.json({ visits })
+    }
     const visits = await getMyVisits(claims.schema_name, claims.app_user_id)
     return NextResponse.json({ visits })
   } catch (err) {

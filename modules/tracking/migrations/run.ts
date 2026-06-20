@@ -137,5 +137,18 @@ export async function runMigrations(schemaName: string): Promise<void> {
         add column if not exists nombre      text not null default '',
         add column if not exists descripcion  text
     `)
+
+    // 004: accuracy_metros en route_points
+    await db.unsafe(`
+      alter table tracking__route_points
+        add column if not exists accuracy_metros integer
+    `)
+
+    // 005: resultado en visits
+    await db.unsafe(`
+      alter table tracking__visits
+        add column if not exists resultado text
+          check (resultado in ('venta', 'no_venta'))
+    `)
   })
 }

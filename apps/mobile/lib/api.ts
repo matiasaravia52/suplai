@@ -76,4 +76,10 @@ export const api = {
       method: "POST",
       body: body != null ? JSON.stringify(body) : undefined,
     }),
+
+  patch: <T>(path: string, body?: unknown) =>
+    apiFetch<T>(path, {
+      method: "PATCH",
+      body: body != null ? JSON.stringify(body) : undefined,
+    }),
 }

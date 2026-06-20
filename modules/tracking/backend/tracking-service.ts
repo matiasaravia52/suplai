@@ -14,6 +14,7 @@ import type {
   UnknownPoint,
   CreateUnknownPointInput,
   VisitWithPoint,
+  ResultadoVisita,
 } from "@suplai/types"
 import { updateClientPointCoords } from "@suplai/clients"
 import * as XLSX from "xlsx"
@@ -181,13 +182,14 @@ export async function flushRoutePoints(
     await db`
       insert into tracking__route_points ${db(
         points.map((p) => ({
-          user_id:     userId,
-          visit_id:    visitId ?? null,
-          lat:         p.lat,
-          lng:         p.lng,
-          speed_kmh:   p.speed_kmh ?? null,
-          heading:     p.heading ?? null,
-          recorded_at: p.recorded_at,
+          user_id:         userId,
+          visit_id:        visitId ?? null,
+          lat:             p.lat,
+          lng:             p.lng,
+          speed_kmh:       p.speed_kmh ?? null,
+          heading:         p.heading ?? null,
+          accuracy_metros: p.accuracy_metros ?? null,
+          recorded_at:     p.recorded_at,
         })),
       )}
     `
@@ -256,7 +258,7 @@ export async function getRoutePoints(
   return withTenantSchema(schemaName, (db) => {
     if (visitId) {
       return db<RoutePoint[]>`
-        select id, user_id, visit_id, lat, lng, speed_kmh, heading, recorded_at, created_at
+        select id, user_id, visit_id, lat, lng, speed_kmh, heading, accuracy_metros, recorded_at, created_at
         from tracking__route_points
         where user_id = ${userId} and visit_id = ${visitId}
         order by recorded_at asc
@@ -265,7 +267,7 @@ export async function getRoutePoints(
     }
     // Sin visitId activo: todos los puntos del día para ver el recorrido completo
     return db<RoutePoint[]>`
-      select rp.id, rp.user_id, rp.visit_id, rp.lat, rp.lng, rp.speed_kmh, rp.heading, rp.recorded_at, rp.created_at
+      select rp.id, rp.user_id, rp.visit_id, rp.lat, rp.lng, rp.speed_kmh, rp.heading, rp.accuracy_metros, rp.recorded_at, rp.created_at
       from tracking__route_points rp
       where rp.user_id = ${userId}
         and rp.recorded_at >= current_date
@@ -492,6 +494,68 @@ export async function getMyVisits(
       order by v.checkin_at desc
       limit 50
     ` as any
+  })
+}
+
+export async function getVisitasPendientesResultado(
+  schemaName: string,
+  userId: string,
+): Promise<VisitWithPoint[]> {
+  return withTenantSchema(schemaName, async (db) => {
+    return db`
+      select
+        v.*,
+        cp.nombre as client_point_nombre
+      from tracking__visits v
+      join client_points cp on cp.id = v.client_point_id
+      where v.user_id = ${userId}
+        and v.checkout_at is not null
+        and v.resultado is null
+      order by v.checkout_at desc
+      limit 10
+    ` as any
+  })
+}
+
+export async function setResultado(
+  schemaName: string,
+  visitId: string,
+  userId: string,
+  resultado: ResultadoVisita,
+): Promise<Visit> {
+  return withTenantSchema(schemaName, async (db) => {
+    const rows = await db<Visit[]>`
+      update tracking__visits
+      set resultado = ${resultado}
+      where id = ${visitId}
+        and user_id = ${userId}
+        and checkout_at is not null
+      returning *
+    `
+    if (rows.length === 0) throw new Error("Visita no encontrada o sin checkout")
+    const visit = rows[0]
+    if (!visit) throw new Error("Error al actualizar resultado")
+    return visit
+  })
+}
+
+export async function setResultadoSupervisor(
+  schemaName: string,
+  visitId: string,
+  resultado: ResultadoVisita,
+): Promise<Visit> {
+  return withTenantSchema(schemaName, async (db) => {
+    const rows = await db<Visit[]>`
+      update tracking__visits
+      set resultado = ${resultado}
+      where id = ${visitId}
+        and checkout_at is not null
+      returning *
+    `
+    if (rows.length === 0) throw new Error("Visita no encontrada o sin checkout")
+    const visit = rows[0]
+    if (!visit) throw new Error("Error al actualizar resultado")
+    return visit
   })
 }
 

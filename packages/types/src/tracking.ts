@@ -1,3 +1,5 @@
+export type ResultadoVisita = 'venta' | 'no_venta'
+
 export interface Visit {
   id: string
   client_point_id: string
@@ -8,6 +10,7 @@ export interface Visit {
   checkout_at?: string
   checkout_lat?: number
   checkout_lng?: number
+  resultado?: ResultadoVisita
   created_at: string
 }
 
@@ -19,6 +22,7 @@ export interface RoutePoint {
   lng: number
   speed_kmh?: number
   heading?: number
+  accuracy_metros?: number
   recorded_at: string
 }
 
