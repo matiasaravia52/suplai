@@ -69,6 +69,15 @@ export async function createTenant(formData: FormData) {
   redirect(`/tenants/${tenantId}`)
 }
 
+export async function reRunMigrations(tenantId: string, moduleId: string) {
+  const tenant = await getTenant(tenantId)
+  if (!tenant) return
+  const manifest = ModuleRegistry.get(moduleId)
+  if (!manifest?.runMigrations) return
+  await manifest.runMigrations(tenant.schema_name)
+  revalidatePath(`/tenants/${tenantId}`)
+}
+
 export async function toggleModule(tenantId: string, moduleId: string, activo: boolean) {
   const tenant = await getTenant(tenantId)
   if (!tenant) return

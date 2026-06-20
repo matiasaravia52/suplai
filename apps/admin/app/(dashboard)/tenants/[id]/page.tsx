@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getTenant, getTenantModules, toggleModule, toggleTenant } from "@/actions/tenants"
+import { getTenant, getTenantModules, toggleModule, toggleTenant, reRunMigrations } from "@/actions/tenants"
 import { getTenantUsers } from "@/actions/users"
 import { DeleteTenantButton } from "./DeleteTenantButton"
 
@@ -71,12 +71,19 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
               <span className="text-sm text-gray-700">{m.nombre}</span>
               <div className="flex items-center gap-3">
                 {m.activo && (
-                  <Link
-                    href={`/tenants/${id}/modules/${m.module_id}`}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Configurar
-                  </Link>
+                  <>
+                    <form action={async () => { "use server"; await reRunMigrations(id, m.module_id) }}>
+                      <button type="submit" className="text-xs text-orange-600 hover:underline">
+                        Migrar
+                      </button>
+                    </form>
+                    <Link
+                      href={`/tenants/${id}/modules/${m.module_id}`}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Configurar
+                    </Link>
+                  </>
                 )}
                 <form action={async () => { "use server"; await toggleModule(id, m.module_id, !m.activo) }}>
                   <button
