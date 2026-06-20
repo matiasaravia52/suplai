@@ -1,10 +1,12 @@
 import * as TaskManager from "expo-task-manager"
 import * as Location from "expo-location"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { api } from "./api"
 
 export const BACKGROUND_LOCATION_TASK = "BACKGROUND_LOCATION"
 
 const BUFFER_KEY = "gps_buffer"
+const FLUSH_INTERVAL_MS = 30_000
 
 interface GpsPoint {
   lat: number
@@ -47,10 +49,25 @@ export async function clearBuffer(): Promise<void> {
   await AsyncStorage.removeItem(BUFFER_KEY)
 }
 
+async function flushBuffer(visitId?: string): Promise<void> {
+  const raw = await AsyncStorage.getItem(BUFFER_KEY)
+  if (!raw) return
+  const buffer: GpsPoint[] = JSON.parse(raw)
+  if (buffer.length === 0) return
+
+  try {
+    await api.post("/api/tracking/flush", { points: buffer, visitId })
+    await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify([]))
+  } catch {
+    // Reintentar en el próximo tick
+  }
+}
+
 // Suscripción activa de foreground (watchPositionAsync)
 let _watchSubscription: Location.LocationSubscription | null = null
+let _flushInterval: ReturnType<typeof setInterval> | null = null
 
-export async function startBackgroundLocation(): Promise<boolean> {
+export async function startBackgroundLocation(visitId?: string): Promise<boolean> {
   // Pedir permiso de foreground (funciona en Expo Go)
   const { status: fgStatus } = await Location.requestForegroundPermissionsAsync()
   if (fgStatus !== "granted") return false
@@ -82,6 +99,9 @@ export async function startBackgroundLocation(): Promise<boolean> {
     },
   )
 
+  // Flush periódico al servidor cada 30 segundos
+  _flushInterval = setInterval(() => flushBuffer(visitId), FLUSH_INTERVAL_MS)
+
   // También iniciar background task si tenemos permiso (dev/prod builds)
   if (bgGranted) {
     try {
@@ -106,6 +126,14 @@ export async function startBackgroundLocation(): Promise<boolean> {
 export async function stopBackgroundLocation(): Promise<void> {
   _watchSubscription?.remove()
   _watchSubscription = null
+
+  if (_flushInterval) {
+    clearInterval(_flushInterval)
+    _flushInterval = null
+  }
+
+  // Flush final antes de detener
+  await flushBuffer()
 
   try {
     const registered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK)
