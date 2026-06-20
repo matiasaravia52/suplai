@@ -117,13 +117,14 @@ export async function checkin(
     }
 
     // Vincular automáticamente al stop del plan activo del día
+    // Usar timezone Argentina porque current_date en Supabase Cloud es UTC
     await db`
       update tracking__route_plan_stops s
       set visit_id = ${visit.id}
       from tracking__route_plans p
       where s.plan_id = p.id
         and p.user_id = ${input.userId}
-        and p.fecha = current_date
+        and p.fecha = (current_timestamp at time zone 'America/Argentina/Buenos_Aires')::date
         and p.estado = 'activa'
         and s.client_point_id = ${input.clientPointId}
         and s.visit_id is null
