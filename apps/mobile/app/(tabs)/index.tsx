@@ -88,8 +88,20 @@ export default function HomeScreen() {
       await stopBackgroundLocation()
       setGpsOn(false)
     } else {
-      const ok = await startBackgroundLocation()
-      if (ok) setGpsOn(true)
+      try {
+        const ok = await startBackgroundLocation()
+        if (ok) {
+          setGpsOn(true)
+        } else {
+          Alert.alert(
+            "Permiso denegado",
+            "Para registrar el recorrido necesitamos permiso de ubicación en segundo plano. Habilitalo en Configuración > Suplai > Ubicación > Siempre.",
+          )
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        Alert.alert("Error GPS", msg)
+      }
     }
   }, [gpsOn])
 
