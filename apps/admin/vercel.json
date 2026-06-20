@@ -2,5 +2,6 @@
   "buildCommand": "cd ../.. && pnpm turbo build --filter=@suplai/admin",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "outputDirectory": ".next",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "regions": ["gru1"]
 }
