@@ -28,7 +28,7 @@ export function TrackingPanel({ employees, schemaName, mapboxToken }: Props) {
   const [selectedId, setSelectedId] = useState<string | undefined>()
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([])
   const [activePlan, setActivePlan] = useState<RoutePlanDetail | null>(null)
-  const selectedIdRef = useRef<string | undefined>()
+  const selectedIdRef = useRef<string | undefined>(undefined)
   selectedIdRef.current = selectedId
 
   const refreshSelected = useCallback(async (userId: string) => {
