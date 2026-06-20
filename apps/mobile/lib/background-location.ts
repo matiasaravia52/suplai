@@ -79,9 +79,9 @@ export async function startBackgroundLocation(visitId?: string): Promise<boolean
   // Tracking de foreground con watchPositionAsync (funciona siempre, incluso en Expo Go)
   _watchSubscription = await Location.watchPositionAsync(
     {
-      accuracy: Location.Accuracy.High,
-      distanceInterval: 50,
-      timeInterval: 15_000,
+      accuracy: Location.Accuracy.Balanced,
+      distanceInterval: 0,   // actualiza aunque no haya movimiento
+      timeInterval: 10_000,  // cada 10 segundos
     },
     async (location) => {
       const point: GpsPoint = {
@@ -91,11 +91,17 @@ export async function startBackgroundLocation(visitId?: string): Promise<boolean
         heading: location.coords.heading ?? undefined,
         recorded_at: new Date(location.timestamp).toISOString(),
       }
+      console.log("[GPS] punto capturado:", point.lat, point.lng)
       const existing = await AsyncStorage.getItem(BUFFER_KEY)
       const buffer: GpsPoint[] = existing ? JSON.parse(existing) : []
       buffer.push(point)
       if (buffer.length > 500) buffer.splice(0, buffer.length - 500)
       await AsyncStorage.setItem(BUFFER_KEY, JSON.stringify(buffer))
+
+      // Flush inmediato con el primer punto para actualizar el mapa enseguida
+      if (buffer.length === 1) {
+        flushBuffer(visitId)
+      }
     },
   )
 
