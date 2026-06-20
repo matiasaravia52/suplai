@@ -349,7 +349,7 @@ export async function listRoutePlans(
 ): Promise<(RoutePlan & { user_nombre: string; total_stops: number; stops_visitados: number })[]> {
   return withTenantSchema(schemaName, (db) => db`
     select
-      p.id, p.user_id, p.created_by, p.estado, p.created_at, p.updated_at,
+      p.id, p.user_id, p.created_by, p.estado, p.created_at,
       to_char(p.fecha, 'YYYY-MM-DD') as fecha,
       u.nombre as user_nombre,
       count(s.id)::int as total_stops,
@@ -373,7 +373,7 @@ export async function getRoutePlanDetail(
 ): Promise<RoutePlanDetail | null> {
   return withTenantSchema(schemaName, async (db) => {
     const [plan] = await db<(RoutePlan & { user_nombre: string })[]>`
-      select p.id, p.user_id, p.created_by, p.estado, p.created_at, p.updated_at,
+      select p.id, p.user_id, p.created_by, p.estado, p.created_at,
              to_char(p.fecha, 'YYYY-MM-DD') as fecha,
              u.nombre as user_nombre
       from tracking__route_plans p
