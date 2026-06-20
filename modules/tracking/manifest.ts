@@ -43,7 +43,15 @@ export const manifest: ModuleManifest = {
   ],
   notifications: [],
   coreDepends: ["users", "clients"],
-  migrations: ["001_create_tables.sql", "002_route_plans.sql", "003_add_unknown_point_fields.sql"],
+  migrations: [
+    "001_create_tables.sql",
+    "002_route_plans.sql",
+    "003_add_unknown_point_fields.sql",
+    "004_add_accuracy_to_route_points.sql",
+    "005_add_resultado_to_visits.sql",
+    "006_rename_plans_to_zonas.sql",
+    "007_drop_route_plans.sql",
+  ],
   runMigrations,
 }
 

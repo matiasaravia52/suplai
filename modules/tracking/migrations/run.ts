@@ -96,40 +96,7 @@ export async function runMigrations(schemaName: string): Promise<void> {
       )
     `)
 
-    // 002: hojas de ruta
-    await db.unsafe(`
-      create table if not exists tracking__route_plans (
-        id          uuid primary key default gen_random_uuid(),
-        user_id     uuid not null references users(id) on delete restrict,
-        fecha       date not null,
-        estado      text not null default 'borrador'
-                    check (estado in ('borrador', 'activa', 'completada')),
-        created_by  uuid not null references users(id) on delete restrict,
-        created_at  timestamptz not null default now()
-      )
-    `)
-
-    await db.unsafe(`
-      create index if not exists tracking__route_plans_user_fecha_idx
-        on tracking__route_plans (user_id, fecha)
-    `)
-
-    await db.unsafe(`
-      create table if not exists tracking__route_plan_stops (
-        id               uuid primary key default gen_random_uuid(),
-        plan_id          uuid not null references tracking__route_plans(id) on delete cascade,
-        client_point_id  uuid not null references client_points(id) on delete restrict,
-        orden            integer not null,
-        visit_id         uuid references tracking__visits(id) on delete set null,
-        created_at       timestamptz not null default now(),
-        unique (plan_id, orden)
-      )
-    `)
-
-    await db.unsafe(`
-      create index if not exists tracking__route_plan_stops_plan_orden_idx
-        on tracking__route_plan_stops (plan_id, orden)
-    `)
+    // 002: (route_plans eliminado en 007 — ver abajo)
 
     // 003: nombre y descripción en unknown_points
     await db.unsafe(`
@@ -177,5 +144,9 @@ export async function runMigrations(schemaName: string): Promise<void> {
       create index if not exists tracking__zona_stops_zona_orden_idx
         on tracking__zona_stops (zona_id, orden)
     `)
+
+    // 007: eliminar tablas de hojas de ruta (reemplazadas por zonas)
+    await db.unsafe(`drop table if exists tracking__route_plan_stops cascade`)
+    await db.unsafe(`drop table if exists tracking__route_plans cascade`)
   })
 }
