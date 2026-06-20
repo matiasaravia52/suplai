@@ -457,6 +457,23 @@ export async function getMyPlan(
   return getActivePlanForEmployee(schemaName, userId, fecha)
 }
 
+export async function getMyPlansForDate(
+  schemaName: string,
+  userId: string,
+  fecha?: string,
+): Promise<RoutePlanDetail[]> {
+  const targetDate = fecha ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
+  return withTenantSchema(schemaName, async (db) => {
+    const plans = await db<{ id: string }[]>`
+      select id from tracking__route_plans
+      where user_id = ${userId} and fecha = ${targetDate}
+      order by created_at asc
+    `
+    const details = await Promise.all(plans.map((p) => getRoutePlanDetail(schemaName, p.id)))
+    return details.filter((d): d is RoutePlanDetail => d !== null)
+  })
+}
+
 export async function getMyVisits(
   schemaName: string,
   userId: string,

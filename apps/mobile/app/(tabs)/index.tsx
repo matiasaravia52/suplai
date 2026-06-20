@@ -1,8 +1,9 @@
-import { useEffect, useCallback, useState } from "react"
+import { useCallback, useState } from "react"
 import {
   View,
   Text,
   FlatList,
+  SectionList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -18,22 +19,27 @@ import { useLocation } from "../../hooks/useLocation"
 import { useStore } from "../../lib/store"
 import { api } from "../../lib/api"
 import { startBackgroundLocation, stopBackgroundLocation } from "../../lib/background-location"
-import type { RoutePlanStopDetail, ClientPoint } from "@suplai/types"
+import type { RoutePlanStopDetail, ClientPoint, RoutePlanDetail } from "@suplai/types"
 
 export default function HomeScreen() {
   const router = useRouter()
-  const { plan, loading, refetch } = useActivePlan()
+  const { plans, loading, refetch } = useActivePlan()
   const { activeVisit, checkActiveVisit } = useActiveVisit()
   const { getCurrentPosition } = useLocation()
   const { setActiveVisit, gpsTracking, setGpsTracking } = useStore()
 
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ClientPoint[]>([])
   const [searching, setSearching] = useState(false)
 
-  const [refreshing, setRefreshing] = useState(false)
-  const completedCount = plan?.stops.filter((s) => s.visitado).length ?? 0
-  const totalCount = plan?.stops.length ?? 0
+  useFocusEffect(
+    useCallback(() => {
+      refetch()
+      checkActiveVisit()
+    }, [refetch, checkActiveVisit]),
+  )
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -42,13 +48,14 @@ export default function HomeScreen() {
     setRefreshing(false)
   }, [refetch, checkActiveVisit])
 
-  // Al recuperar el foco: refetch plan + sincronizar visita activa con el servidor
-  useFocusEffect(
-    useCallback(() => {
-      refetch()
-      checkActiveVisit()
-    }, [refetch, checkActiveVisit]),
-  )
+  const toggleSection = useCallback((planId: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(planId)) next.delete(planId)
+      else next.add(planId)
+      return next
+    })
+  }, [])
 
   const handleCheckin = useCallback(async (clientPointId: string, clientPointNombre: string) => {
     const pos = await getCurrentPosition()
@@ -59,14 +66,12 @@ export default function HomeScreen() {
         "/api/tracking/checkin",
         { clientPointId, lat: pos.lat, lng: pos.lng },
       )
-
       setActiveVisit({
         visitId: data.visit.id,
         clientPointId,
         clientPointNombre,
         checkinAt: data.visit.checkin_at,
       })
-
       router.push("/visita-activa")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al registrar visita"
@@ -76,11 +81,7 @@ export default function HomeScreen() {
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query)
-    if (query.length < 2) {
-      setSearchResults([])
-      return
-    }
-
+    if (query.length < 2) { setSearchResults([]); return }
     setSearching(true)
     try {
       const data = await api.get<{ points: ClientPoint[] }>(
@@ -100,54 +101,35 @@ export default function HomeScreen() {
       if (ok) {
         setGpsTracking(true)
       } else {
-        Alert.alert(
-          "Permiso denegado",
-          "Para registrar el recorrido necesitamos permiso de ubicación. Habilitalo en Configuración > Suplai > Ubicación.",
-        )
+        Alert.alert("Permiso denegado", "Para registrar el recorrido necesitamos permiso de ubicación.")
       }
     } catch (err) {
-      console.error("[GPS] error:", err)
-      const msg = err instanceof Error ? err.message : String(err)
-      Alert.alert("Error al iniciar", msg)
+      Alert.alert("Error al iniciar", err instanceof Error ? err.message : String(err))
     }
   }, [])
 
+  const totalStops = plans.reduce((acc, p) => acc + p.stops.length, 0)
+  const completedStops = plans.reduce((acc, p) => acc + p.stops.filter((s) => s.visitado).length, 0)
+
   const finalizarRecorrido = useCallback(() => {
-    const todasVisitadas = plan?.stops.every((s) => s.visitado) ?? false
+    const todasVisitadas = totalStops > 0 && completedStops === totalStops
 
     if (todasVisitadas) {
-      Alert.alert(
-        "Finalizar recorrido",
-        "¿Confirmar que completaste todas las paradas?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Finalizar",
-            onPress: async () => {
-              await stopBackgroundLocation()
-              setGpsTracking(false)
-            },
-          },
-        ],
-      )
+      Alert.alert("Finalizar recorrido", "¿Confirmar que completaste todas las paradas?", [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Finalizar", onPress: async () => { await stopBackgroundLocation(); setGpsTracking(false) } },
+      ])
     } else {
       Alert.alert(
         "Paradas pendientes",
-        `Todavía quedan ${(plan?.stops.length ?? 0) - completedCount} paradas sin visitar. ¿Finalizar igual y marcar el recorrido como incompleto?`,
+        `Quedan ${totalStops - completedStops} paradas sin visitar. ¿Finalizar igual?`,
         [
           { text: "Volver", style: "cancel" },
-          {
-            text: "Finalizar igual",
-            style: "destructive",
-            onPress: async () => {
-              await stopBackgroundLocation()
-              setGpsTracking(false)
-            },
-          },
+          { text: "Finalizar igual", style: "destructive", onPress: async () => { await stopBackgroundLocation(); setGpsTracking(false) } },
         ],
       )
     }
-  }, [plan, completedCount])
+  }, [totalStops, completedStops])
 
   if (loading) {
     return (
@@ -158,17 +140,13 @@ export default function HomeScreen() {
     )
   }
 
-  // Si hay una visita abierta, mostrar banner para volver a ella
   if (activeVisit) {
     return (
       <View style={styles.container}>
         <View style={styles.activeVisitBanner}>
           <Text style={styles.activeVisitLabel}>Visita en curso</Text>
           <Text style={styles.activeVisitName}>{activeVisit.clientPointNombre}</Text>
-          <TouchableOpacity
-            style={styles.activeVisitButton}
-            onPress={() => router.push("/visita-activa")}
-          >
+          <TouchableOpacity style={styles.activeVisitButton} onPress={() => router.push("/visita-activa")}>
             <Text style={styles.activeVisitButtonText}>Volver a la visita</Text>
           </TouchableOpacity>
         </View>
@@ -176,31 +154,49 @@ export default function HomeScreen() {
     )
   }
 
-  const showSearch = !plan || plan.stops.every((s) => s.visitado)
+  const hasPlan = plans.length > 0
+
+  // Secciones para SectionList
+  const sections = plans.map((plan) => ({
+    planId: plan.id,
+    title: plan.user_nombre ?? "Hoja de ruta",
+    count: plan.stops.length,
+    completed: plan.stops.filter((s) => s.visitado).length,
+    data: collapsed.has(plan.id) ? [] : plan.stops,
+  }))
 
   return (
     <View style={styles.container}>
-      {plan && totalCount > 0 ? (
+      {hasPlan ? (
         <>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              {completedCount}/{totalCount} paradas
-            </Text>
+            <Text style={styles.headerTitle}>{completedStops}/{totalStops} paradas</Text>
           </View>
 
-          <FlatList
-            data={plan.stops}
+          <SectionList
+            sections={sections}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            renderItem={({ item }) => (
+            renderSectionHeader={({ section }) => {
+              const isCollapsed = collapsed.has(section.planId)
+              return (
+                <TouchableOpacity
+                  style={styles.sectionHeader}
+                  onPress={() => toggleSection(section.planId)}
+                >
+                  <View style={styles.sectionLeft}>
+                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                    <Text style={styles.sectionCount}>{section.completed}/{section.count}</Text>
+                  </View>
+                  <Text style={styles.chevron}>{isCollapsed ? "›" : "⌄"}</Text>
+                </TouchableOpacity>
+              )
+            }}
+            renderItem={({ item }: { item: RoutePlanStopDetail }) => (
               <TouchableOpacity
                 style={[styles.stopItem, item.visitado && styles.stopVisited]}
-                onPress={() => {
-                  if (!item.visitado) {
-                    handleCheckin(item.client_point_id, item.client_point_nombre)
-                  }
-                }}
+                onPress={() => { if (!item.visitado) handleCheckin(item.client_point_id, item.client_point_nombre) }}
                 disabled={item.visitado}
               >
                 <View style={styles.stopBullet}>
@@ -228,73 +224,68 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         </>
-      ) : showSearch ? (
+      ) : (
         <>
-          <Text style={styles.noPlanText}>Sin plan asignado para hoy</Text>
-          <Text style={styles.searchLabel}>Buscar punto de venta</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="🔍 Nombre o dirección..."
-            value={searchQuery}
-            onChangeText={handleSearch}
+          <FlatList
+            data={[]}
+            keyExtractor={() => ""}
+            renderItem={() => null}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ListHeaderComponent={
+              <View>
+                <Text style={styles.noPlanText}>Sin plan asignado para hoy</Text>
+                <Text style={styles.searchLabel}>Buscar punto de venta</Text>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="🔍 Nombre o dirección..."
+                  value={searchQuery}
+                  onChangeText={handleSearch}
+                />
+                {searching && <ActivityIndicator style={{ marginTop: 16 }} />}
+                {!searching && searchResults.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.searchResult}
+                    onPress={() => handleCheckin(item.id, item.nombre)}
+                  >
+                    <Text style={styles.searchResultName}>{item.nombre}</Text>
+                    {item.direccion ? <Text style={styles.searchResultDir}>{item.direccion}</Text> : null}
+                  </TouchableOpacity>
+                ))}
+                {!searching && searchQuery.length >= 2 && searchResults.length === 0 && (
+                  <Text style={styles.noResults}>Sin resultados</Text>
+                )}
+              </View>
+            }
           />
-          {searching ? (
-            <ActivityIndicator style={{ marginTop: 16 }} />
-          ) : searchResults.length > 0 ? (
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.searchResult}
-                  onPress={() => handleCheckin(item.id, item.nombre)}
-                >
-                  <Text style={styles.searchResultName}>{item.nombre}</Text>
-                  {item.direccion ? (
-                    <Text style={styles.searchResultDir}>{item.direccion}</Text>
-                  ) : null}
-                </TouchableOpacity>
-              )}
-            />
-          ) : searchQuery.length >= 2 ? (
-            <Text style={styles.noResults}>Sin resultados</Text>
-          ) : null}
         </>
-      ) : null}
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
+  container: { flex: 1, backgroundColor: "#fff" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  loadingText: { marginTop: 12, color: "#666", fontSize: 14 },
+  header: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  headerTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
+  list: { paddingBottom: 8 },
+  sectionHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  loadingText: {
-    marginTop: 12,
-    color: "#666",
-    fontSize: 14,
-  },
-  header: {
+    justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: "#f9f9f9",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  list: {
-    paddingVertical: 8,
-  },
+  sectionLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#555", textTransform: "uppercase" },
+  sectionCount: { fontSize: 12, color: "#999" },
+  chevron: { fontSize: 18, color: "#999", lineHeight: 20 },
   stopItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -303,137 +294,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
-  stopVisited: {
-    opacity: 0.5,
-  },
-  stopBullet: {
-    width: 24,
-    alignItems: "center",
-  },
-  bullet: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: "#2563eb",
-    backgroundColor: "transparent",
-  },
-  bulletVisited: {
-    backgroundColor: "#22c55e",
-    borderColor: "#22c55e",
-  },
-  stopInfo: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  stopName: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1a1a2e",
-  },
-  textVisited: {
-    textDecorationLine: "line-through",
-    color: "#999",
-  },
-  stopClient: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: 2,
-  },
-  gpsButton: {
-    margin: 16,
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#2563eb",
-    alignItems: "center",
-  },
-  gpsButtonActive: {
-    backgroundColor: "#2563eb",
-  },
-  gpsButtonText: {
-    color: "#2563eb",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  gpsButtonTextActive: {
-    color: "#ffffff",
-  },
-  noPlanText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-    marginTop: 32,
-    marginBottom: 24,
-  },
-  searchLabel: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-    paddingHorizontal: 20,
-  },
-  searchInput: {
-    marginHorizontal: 20,
-    height: 44,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    backgroundColor: "#f9f9f9",
-  },
-  searchResult: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  searchResultName: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1a1a2e",
-  },
-  searchResultDir: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: 2,
-  },
-  noResults: {
-    textAlign: "center",
-    color: "#999",
-    marginTop: 24,
-    fontSize: 14,
-  },
-  activeVisitBanner: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-    gap: 12,
-  },
-  activeVisitLabel: {
-    fontSize: 13,
-    color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  activeVisitName: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1a1a2e",
-    textAlign: "center",
-  },
-  activeVisitButton: {
-    marginTop: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    backgroundColor: "#2563eb",
-    borderRadius: 10,
-  },
-  activeVisitButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  stopVisited: { opacity: 0.5 },
+  stopBullet: { width: 24, alignItems: "center" },
+  bullet: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: "#2563eb", backgroundColor: "transparent" },
+  bulletVisited: { backgroundColor: "#22c55e", borderColor: "#22c55e" },
+  stopInfo: { flex: 1, marginLeft: 8 },
+  stopName: { fontSize: 15, fontWeight: "500", color: "#1a1a2e" },
+  textVisited: { textDecorationLine: "line-through", color: "#999" },
+  stopClient: { fontSize: 13, color: "#666", marginTop: 2 },
+  gpsButton: { margin: 16, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: "#2563eb", alignItems: "center" },
+  gpsButtonActive: { margin: 16, padding: 14, borderRadius: 8, backgroundColor: "#2563eb", alignItems: "center" },
+  gpsButtonText: { color: "#2563eb", fontWeight: "600", fontSize: 14 },
+  gpsButtonTextActive: { color: "#ffffff", fontWeight: "600", fontSize: 14 },
+  noPlanText: { fontSize: 18, fontWeight: "600", color: "#333", textAlign: "center", marginTop: 32, marginBottom: 24 },
+  searchLabel: { fontSize: 14, color: "#666", marginBottom: 8, paddingHorizontal: 20 },
+  searchInput: { marginHorizontal: 20, height: 44, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, paddingHorizontal: 14, fontSize: 15, backgroundColor: "#f9f9f9" },
+  searchResult: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#f0f0f0" },
+  searchResultName: { fontSize: 15, fontWeight: "500", color: "#1a1a2e" },
+  searchResultDir: { fontSize: 13, color: "#666", marginTop: 2 },
+  noResults: { textAlign: "center", color: "#999", marginTop: 24, fontSize: 14 },
+  activeVisitBanner: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 12 },
+  activeVisitLabel: { fontSize: 13, color: "#666", textTransform: "uppercase", letterSpacing: 1 },
+  activeVisitName: { fontSize: 22, fontWeight: "700", color: "#1a1a2e", textAlign: "center" },
+  activeVisitButton: { marginTop: 8, paddingVertical: 14, paddingHorizontal: 32, backgroundColor: "#2563eb", borderRadius: 10 },
+  activeVisitButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 })

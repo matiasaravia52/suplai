@@ -6,22 +6,19 @@ import type { RoutePlanDetail } from "@suplai/types"
 const POLL_INTERVAL_MS = 5 * 60 * 1000
 
 export function useActivePlan() {
-  const { plan, planLoading, setPlan, setPlanLoading } = useStore()
+  const { plans, planLoading, setPlans, setPlanLoading } = useStore()
 
   const fetchPlan = useCallback(async () => {
     setPlanLoading(true)
-    // Pasar la fecha local del dispositivo para evitar diferencias de timezone UTC
-    const today = new Date().toLocaleDateString("en-CA") // YYYY-MM-DD en hora local
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
     try {
-      console.log("[useActivePlan] fetching plan for", today)
-      const data = await api.get<{ plan: RoutePlanDetail | null }>(`/api/tracking/my-plan?fecha=${today}`)
-      console.log("[useActivePlan] response:", JSON.stringify(data))
-      setPlan(data.plan)
+      const data = await api.get<{ plans: RoutePlanDetail[] }>(`/api/tracking/my-plan?fecha=${today}`)
+      setPlans(data.plans ?? [])
     } catch (err) {
       console.error("[useActivePlan] error:", err instanceof Error ? err.message : err)
-      setPlan(null)
+      setPlans([])
     }
-  }, [setPlan, setPlanLoading])
+  }, [setPlans, setPlanLoading])
 
   useEffect(() => {
     fetchPlan()
@@ -29,5 +26,5 @@ export function useActivePlan() {
     return () => clearInterval(interval)
   }, [fetchPlan])
 
-  return { plan, loading: planLoading, refetch: fetchPlan }
+  return { plans, loading: planLoading, refetch: fetchPlan }
 }

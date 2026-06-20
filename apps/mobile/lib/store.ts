@@ -18,9 +18,9 @@ interface AppStore {
   setSession: (session: Session, apiBaseUrl: string) => void
   clearSession: () => void
 
-  plan: RoutePlanDetail | null
+  plans: RoutePlanDetail[]
   planLoading: boolean
-  setPlan: (plan: RoutePlanDetail | null) => void
+  setPlans: (plans: RoutePlanDetail[]) => void
   setPlanLoading: (loading: boolean) => void
 
   gpsTracking: boolean
@@ -42,11 +42,11 @@ export const useStore = create<AppStore>()(
         set({ session, apiBaseUrl }),
 
       clearSession: () =>
-        set({ session: null, apiBaseUrl: null, plan: null, activeVisit: null }),
+        set({ session: null, apiBaseUrl: null, plans: [], activeVisit: null }),
 
-      plan: null,
+      plans: [],
       planLoading: false,
-      setPlan: (plan) => set({ plan, planLoading: false }),
+      setPlans: (plans) => set({ plans, planLoading: false }),
       setPlanLoading: (planLoading) => set({ planLoading }),
 
       gpsTracking: false,
