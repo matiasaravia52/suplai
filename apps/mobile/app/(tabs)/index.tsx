@@ -163,7 +163,7 @@ export default function HomeScreen() {
             style={[styles.gpsButton, gpsOn && styles.gpsButtonActive]}
             onPress={toggleGps}
           >
-            <Text style={styles.gpsButtonText}>
+            <Text style={[styles.gpsButtonText, gpsOn && styles.gpsButtonTextActive]}>
               {gpsOn ? "■ Detener tracking GPS" : "▶ Iniciar tracking GPS"}
             </Text>
           </TouchableOpacity>
@@ -295,6 +295,9 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     fontWeight: "600",
     fontSize: 14,
+  },
+  gpsButtonTextActive: {
+    color: "#ffffff",
   },
   noPlanText: {
     fontSize: 18,
