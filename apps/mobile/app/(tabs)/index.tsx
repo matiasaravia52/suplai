@@ -83,12 +83,18 @@ export default function HomeScreen() {
         clientPointNombre,
         checkinAt: data.visit.checkin_at,
       })
+
+      if (!gpsTracking) {
+        const ok = await startBackgroundLocation()
+        if (ok) setGpsTracking(true)
+      }
+
       router.push("/visita-activa")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al registrar visita"
       Alert.alert("Error", message)
     }
-  }, [getCurrentPosition, setActiveVisit, router])
+  }, [getCurrentPosition, setActiveVisit, router, gpsTracking, setGpsTracking])
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query)
