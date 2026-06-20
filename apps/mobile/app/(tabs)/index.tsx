@@ -83,31 +83,60 @@ export default function HomeScreen() {
     }
   }, [])
 
-  const toggleGps = useCallback(async () => {
-    console.log("[GPS] toggleGps called, gpsOn=", gpsOn)
-    if (gpsOn) {
-      await stopBackgroundLocation()
-      setGpsOn(false)
-    } else {
-      try {
-        console.log("[GPS] calling startBackgroundLocation")
-        const ok = await startBackgroundLocation()
-        console.log("[GPS] startBackgroundLocation returned:", ok)
-        if (ok) {
-          setGpsOn(true)
-        } else {
-          Alert.alert(
-            "Permiso denegado",
-            "Para registrar el recorrido necesitamos permiso de ubicación. Habilitalo en Configuración > Suplai > Ubicación.",
-          )
-        }
-      } catch (err) {
-        console.error("[GPS] error:", err)
-        const msg = err instanceof Error ? err.message : String(err)
-        Alert.alert("Error GPS", msg)
+  const iniciarRecorrido = useCallback(async () => {
+    try {
+      const ok = await startBackgroundLocation()
+      if (ok) {
+        setGpsOn(true)
+      } else {
+        Alert.alert(
+          "Permiso denegado",
+          "Para registrar el recorrido necesitamos permiso de ubicación. Habilitalo en Configuración > Suplai > Ubicación.",
+        )
       }
+    } catch (err) {
+      console.error("[GPS] error:", err)
+      const msg = err instanceof Error ? err.message : String(err)
+      Alert.alert("Error al iniciar", msg)
     }
-  }, [gpsOn])
+  }, [])
+
+  const finalizarRecorrido = useCallback(() => {
+    const todasVisitadas = plan?.stops.every((s) => s.visitado) ?? false
+
+    if (todasVisitadas) {
+      Alert.alert(
+        "Finalizar recorrido",
+        "¿Confirmar que completaste todas las paradas?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Finalizar",
+            onPress: async () => {
+              await stopBackgroundLocation()
+              setGpsOn(false)
+            },
+          },
+        ],
+      )
+    } else {
+      Alert.alert(
+        "Paradas pendientes",
+        `Todavía quedan ${(plan?.stops.length ?? 0) - completedCount} paradas sin visitar. ¿Finalizar igual y marcar el recorrido como incompleto?`,
+        [
+          { text: "Volver", style: "cancel" },
+          {
+            text: "Finalizar igual",
+            style: "destructive",
+            onPress: async () => {
+              await stopBackgroundLocation()
+              setGpsOn(false)
+            },
+          },
+        ],
+      )
+    }
+  }, [plan, completedCount])
 
   if (loading) {
     return (
@@ -159,14 +188,15 @@ export default function HomeScreen() {
             )}
           />
 
-          <TouchableOpacity
-            style={[styles.gpsButton, gpsOn && styles.gpsButtonActive]}
-            onPress={toggleGps}
-          >
-            <Text style={[styles.gpsButtonText, gpsOn && styles.gpsButtonTextActive]}>
-              {gpsOn ? "■ Detener tracking GPS" : "▶ Iniciar tracking GPS"}
-            </Text>
-          </TouchableOpacity>
+          {!gpsOn ? (
+            <TouchableOpacity style={styles.gpsButton} onPress={iniciarRecorrido}>
+              <Text style={styles.gpsButtonText}>▶ Iniciar recorrido</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.gpsButtonActive} onPress={finalizarRecorrido}>
+              <Text style={styles.gpsButtonTextActive}>■ Finalizar recorrido</Text>
+            </TouchableOpacity>
+          )}
         </>
       ) : showSearch ? (
         <>
