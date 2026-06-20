@@ -33,18 +33,13 @@ export default function HomeScreen() {
   const completedCount = plan?.stops.filter((s) => s.visitado).length ?? 0
   const totalCount = plan?.stops.length ?? 0
 
-  // Refetch el plan cada vez que la pantalla recupera el foco (ej: al volver de visita-activa)
+  // Al recuperar el foco: refetch plan + sincronizar visita activa con el servidor
   useFocusEffect(
     useCallback(() => {
       refetch()
-    }, [refetch]),
+      checkActiveVisit()
+    }, [refetch, checkActiveVisit]),
   )
-
-  useEffect(() => {
-    if (activeVisit) {
-      router.push("/visita-activa")
-    }
-  }, [activeVisit, router])
 
   const handleCheckin = useCallback(async (clientPointId: string, clientPointNombre: string) => {
     const pos = await getCurrentPosition()
@@ -150,6 +145,24 @@ export default function HomeScreen() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#2563eb" />
         <Text style={styles.loadingText}>Cargando plan...</Text>
+      </View>
+    )
+  }
+
+  // Si hay una visita abierta, mostrar banner para volver a ella
+  if (activeVisit) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.activeVisitBanner}>
+          <Text style={styles.activeVisitLabel}>Visita en curso</Text>
+          <Text style={styles.activeVisitName}>{activeVisit.clientPointNombre}</Text>
+          <TouchableOpacity
+            style={styles.activeVisitButton}
+            onPress={() => router.push("/visita-activa")}
+          >
+            <Text style={styles.activeVisitButtonText}>Volver a la visita</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     )
   }
@@ -381,5 +394,36 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 24,
     fontSize: 14,
+  },
+  activeVisitBanner: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  activeVisitLabel: {
+    fontSize: 13,
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  activeVisitName: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1a1a2e",
+    textAlign: "center",
+  },
+  activeVisitButton: {
+    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    backgroundColor: "#2563eb",
+    borderRadius: 10,
+  },
+  activeVisitButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 })
