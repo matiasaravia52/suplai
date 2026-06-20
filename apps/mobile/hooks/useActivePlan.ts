@@ -13,9 +13,12 @@ export function useActivePlan() {
     // Pasar la fecha local del dispositivo para evitar diferencias de timezone UTC
     const today = new Date().toLocaleDateString("en-CA") // YYYY-MM-DD en hora local
     try {
+      console.log("[useActivePlan] fetching plan for", today)
       const data = await api.get<{ plan: RoutePlanDetail | null }>(`/api/tracking/my-plan?fecha=${today}`)
+      console.log("[useActivePlan] response:", JSON.stringify(data))
       setPlan(data.plan)
-    } catch {
+    } catch (err) {
+      console.error("[useActivePlan] error:", err instanceof Error ? err.message : err)
       setPlan(null)
     }
   }, [setPlan, setPlanLoading])
