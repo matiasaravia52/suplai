@@ -102,7 +102,7 @@ export async function checkin(
 
     // Vincular automáticamente al stop del plan activo del día
     // Usar timezone Argentina porque current_date en Supabase Cloud es UTC
-    await db`
+    const linked = await db`
       update tracking__route_plan_stops s
       set visit_id = ${visit.id}
       from tracking__route_plans p
@@ -113,6 +113,7 @@ export async function checkin(
         and s.client_point_id = ${input.clientPointId}
         and s.visit_id is null
     `
+    console.log("[checkin] stop link rows updated:", linked.count, "userId:", input.userId, "clientPointId:", input.clientPointId, "fecha AR:", new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }))
 
     // Fraud check — solo si el punto tenía coordenadas previas
     if (point.lat != null && point.lng != null) {

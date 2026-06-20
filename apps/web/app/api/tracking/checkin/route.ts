@@ -11,6 +11,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "clientPointId, lat y lng son requeridos" }, { status: 400 })
   }
 
+  console.log("[checkin] schema:", claims.schema_name, "userId:", claims.app_user_id, "clientPointId:", body.clientPointId)
+
   try {
     const result = await checkin(claims.schema_name, {
       clientPointId: body.clientPointId,
@@ -18,9 +20,11 @@ export async function POST(request: Request) {
       lat:           body.lat,
       lng:           body.lng,
     })
+    console.log("[checkin] result:", JSON.stringify(result))
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error interno"
+    console.error("[checkin] error:", message)
     return NextResponse.json({ error: message }, { status: 422 })
   }
 }
