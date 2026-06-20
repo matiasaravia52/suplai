@@ -406,7 +406,9 @@ export async function getActivePlanForEmployee(
   userId: string,
   fecha?: string,
 ): Promise<RoutePlanDetail | null> {
-  const targetDate = fecha ?? new Date().toISOString().slice(0, 10)
+  // Si no se pasa fecha, usar current_date del servidor de DB (que es UTC) o la fecha local del cliente.
+  // Preferimos que el cliente envíe su fecha local para evitar desajustes de timezone.
+  const targetDate = fecha ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })
   return withTenantSchema(schemaName, async (db) => {
     const [plan] = await db<{ id: string }[]>`
       select id from tracking__route_plans

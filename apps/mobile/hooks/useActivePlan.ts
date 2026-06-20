@@ -10,8 +10,10 @@ export function useActivePlan() {
 
   const fetchPlan = useCallback(async () => {
     setPlanLoading(true)
+    // Pasar la fecha local del dispositivo para evitar diferencias de timezone UTC
+    const today = new Date().toLocaleDateString("en-CA") // YYYY-MM-DD en hora local
     try {
-      const data = await api.get<{ plan: RoutePlanDetail | null }>("/api/tracking/my-plan")
+      const data = await api.get<{ plan: RoutePlanDetail | null }>(`/api/tracking/my-plan?fecha=${today}`)
       setPlan(data.plan)
     } catch {
       setPlan(null)
