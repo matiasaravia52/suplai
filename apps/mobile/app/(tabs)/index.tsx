@@ -84,21 +84,25 @@ export default function HomeScreen() {
   }, [])
 
   const toggleGps = useCallback(async () => {
+    console.log("[GPS] toggleGps called, gpsOn=", gpsOn)
     if (gpsOn) {
       await stopBackgroundLocation()
       setGpsOn(false)
     } else {
       try {
+        console.log("[GPS] calling startBackgroundLocation")
         const ok = await startBackgroundLocation()
+        console.log("[GPS] startBackgroundLocation returned:", ok)
         if (ok) {
           setGpsOn(true)
         } else {
           Alert.alert(
             "Permiso denegado",
-            "Para registrar el recorrido necesitamos permiso de ubicación en segundo plano. Habilitalo en Configuración > Suplai > Ubicación > Siempre.",
+            "Para registrar el recorrido necesitamos permiso de ubicación. Habilitalo en Configuración > Suplai > Ubicación.",
           )
         }
       } catch (err) {
+        console.error("[GPS] error:", err)
         const msg = err instanceof Error ? err.message : String(err)
         Alert.alert("Error GPS", msg)
       }
