@@ -119,8 +119,15 @@ export default function HomeScreen() {
     }
   }, [])
 
-  const totalStops = plans.reduce((acc, p) => acc + p.stops.length, 0)
-  const completedStops = plans.reduce((acc, p) => acc + p.stops.filter((s) => s.visitado).length, 0)
+  const sortedPlans = [...plans].sort((a, b) => {
+    const aComplete = a.stops.length > 0 && a.stops.every((s) => s.visitado)
+    const bComplete = b.stops.length > 0 && b.stops.every((s) => s.visitado)
+    if (aComplete === bComplete) return 0
+    return aComplete ? 1 : -1
+  })
+
+  const totalStops = sortedPlans.reduce((acc, p) => acc + p.stops.length, 0)
+  const completedStops = sortedPlans.reduce((acc, p) => acc + p.stops.filter((s) => s.visitado).length, 0)
 
   const finalizarRecorrido = useCallback(() => {
     const todasVisitadas = totalStops > 0 && completedStops === totalStops
@@ -168,7 +175,7 @@ export default function HomeScreen() {
   const hasPlan = plans.length > 0
 
   // Secciones para SectionList
-  const sections = plans.map((plan) => ({
+  const sections = sortedPlans.map((plan) => ({
     planId: plan.id,
     title: plan.user_nombre ?? "Hoja de ruta",
     count: plan.stops.length,
