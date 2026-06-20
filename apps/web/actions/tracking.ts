@@ -3,10 +3,10 @@
 import {
   listFieldEmployees, listVisits, listFraudAlerts, getRoutePoints,
   createRoutePlan, listRoutePlans, getRoutePlanDetail, getActivePlanForEmployee,
-  deleteRoutePlan, updateRoutePlan,
+  deleteRoutePlan, updateRoutePlan, setResultadoSupervisor,
 } from "@suplai/tracking/service"
 import { revalidatePath } from "next/cache"
-import type { FieldEmployee, VisitFilters, AlertFilters, RoutePoint, RoutePlanEstado } from "@suplai/types"
+import type { FieldEmployee, VisitFilters, AlertFilters, RoutePoint, RoutePlanEstado, ResultadoVisita } from "@suplai/types"
 
 export async function getFieldEmployees(schemaName: string): Promise<FieldEmployee[]> {
   return listFieldEmployees(schemaName)
@@ -63,4 +63,13 @@ export async function updatePlan(
   await updateRoutePlan(schemaName, planId, input)
   revalidatePath("/tracking/planes")
   revalidatePath(`/tracking/planes/${planId}`)
+}
+
+export async function marcarResultadoVisita(
+  schemaName: string,
+  visitId: string,
+  resultado: ResultadoVisita,
+) {
+  await setResultadoSupervisor(schemaName, visitId, resultado)
+  revalidatePath("/tracking/historial")
 }
